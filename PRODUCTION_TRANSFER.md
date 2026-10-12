@@ -2,6 +2,10 @@
 
 A step-by-step guide for moving **Reactive Shop** from local sandbox testing to a secure, public, production store.
 
+> 📖 **Online Interactive Setup Guide**:  
+> 👉 **[https://josemodi97.github.io/reactive-demo-docs/](https://josemodi97.github.io/reactive-demo-docs/)**  
+> Browse full-resolution annotated screenshots and interactive section walkthroughs on GitHub Pages (or locally at [`setup-guide/index.html`](setup-guide/index.html)).
+
 ---
 
 ## 1. Overview & Architecture

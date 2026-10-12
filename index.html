@@ -473,7 +473,7 @@
     <li><b>Assign a domain and public IP:</b> Point your domain's DNS A/AAAA records (e.g. <code>shop.example.com</code>) to your production server.</li>
     <li><b>Set your public URL:</b> Set <code>SHOP_PUBLIC_URL=https://shop.example.com</code> (no trailing slash). All payment redirect URLs, callbacks, and order emails follow this setting.</li>
     <li><b>Run behind a reverse proxy (Nginx or Caddy) with SSL:</b> Obtain a free SSL certificate with Let's Encrypt (Certbot) or Cloudflare SSL.</li>
-    <li><b>Forward client IP headers:</b> Set <code>SHOP_FORWARD_HEADERS=framework</code> so the built-in Netty rate limiters track real visitor IPs instead of grouping all traffic under your reverse proxy's IP.</li>
+    <li><b>Forward client IP headers:</b> Set <code>SHOP_FORWARD_HEADERS=framework</code> so the built-in rate limiters track real visitor IPs instead of grouping all traffic under your reverse proxy's IP. Only do this when the shop can be reached <b>only</b> through the proxy; otherwise anyone could forge the headers.</li>
   </ol>
   <pre><code># Sample Nginx reverse proxy configuration:
 server {
@@ -505,22 +505,22 @@ server {
   <h3 id="prod-database">2. Production database and backups</h3>
   <p>In-memory H2 is intended only for development and sandbox demos; all data disappears when the application restarts. Production requires a durable, persistent database engine.</p>
   <ul>
-    <li><b>Supported engines:</b> MariaDB 10.6+, MySQL 8.0+, PostgreSQL 14+, Microsoft SQL Server 2019+, or Oracle 19c+.</li>
-    <li><b>Initial install:</b> When launching on a clean database, the wizard at <code>/setup.html</code> automatically tests your connection, checks collation, and executes all Flyway migrations (tables, sequences, initial catalog, and settings).</li>
+    <li><b>Supported engines:</b> MariaDB, MySQL, PostgreSQL, Microsoft SQL Server and Oracle. No minimum version is enforced or certified; use a version its vendor still supports. The Docker setup uses MariaDB 11.4, and development also ran on MariaDB 10.4 (XAMPP). MariaDB and PostgreSQL are exercised most; try SQL Server and Oracle on a staging copy first.</li>
+    <li><b>Initial install:</b> On a clean database the shop creates every table and the demo catalog itself (Flyway migrations). If it can't reach a database on first start, the setup wizard at <code>/setup.html</code> asks for the connection, creates the database if it's missing, and then sets up the tables.</li>
     <li><b>Automated migrations:</b> Future application updates automatically migrate the schema forward without manual SQL scripts.</li>
     <li><b>Backups:</b> Schedule regular automated backups of your database (e.g. daily cron with <code>mysqldump</code> or <code>pg_dump</code>).</li>
   </ul>
 
   <h3 id="prod-security">3. Safety checks and secrets hardening</h3>
-  <p>When started with <code>SHOP_PRODUCTION=true</code> (the default), the shop runs strict safety assertions (<code>ProductionSafetyCheck</code>) and will <b>refuse to boot</b> if dangerous development defaults are detected.</p>
+  <p>When started with <code>SHOP_PRODUCTION=true</code> (the default), the shop checks the settings below at startup (<code>ProductionSafetyCheck</code>) and <b>refuses to start</b> if one is unsafe. With <code>SHOP_PRODUCTION=false</code> the same problems are only logged as warnings.</p>
   <div class="table-wrap"><table>
-    <tr><th>Security Setting</th><th>Production Requirement</th><th>Purpose</th></tr>
-    <tr><td><code>JWT_SECRET</code></td><td>Unique random string, at least 32 characters</td><td>Signs customer and admin authentication tokens. Replaces the known development key.</td></tr>
-    <tr><td><code>ADMIN_PASSWORD</code></td><td>At least 12 characters (not <code>admin123</code>)</td><td>Protects initial administrative access.</td></tr>
-    <tr><td><code>SHOP_SECRETS_KEY</code></td><td>Must be saved and backed up privately</td><td>AES encryption key that secures stored gateway credentials in <code>integration-settings.json</code>. Automatically generated into <code>shop-install.properties</code> on first install.</td></tr>
-    <tr><td><code>SHOP_CORS_ALLOWED_ORIGINS</code></td><td>Empty, or strictly your own domains</td><td>Blocks unauthorized third-party browsers from making authenticated API calls. Never set to <code>*</code> or <code>localhost</code> in production.</td></tr>
+    <tr><th>Setting</th><th>Checked at startup</th><th>Notes</th></tr>
+    <tr><td><code>JWT_SECRET</code></td><td><b>Refuses to start</b> if shorter than 32 characters or the old published development default</td><td>Optional. When unset, a random secret is generated on first start and kept in <code>shop-install.properties</code>. Changing it signs everyone out.</td></tr>
+    <tr><td><code>ADMIN_PASSWORD</code></td><td><b>Refuses to start</b> if set and shorter than 12 characters or <code>admin123</code></td><td>Optional. Only used with <code>ADMIN_EMAIL</code> to create the first admin without the setup wizard; not checked when empty.</td></tr>
+    <tr><td><code>SHOP_CORS_ALLOWED_ORIGINS</code></td><td><b>Refuses to start</b> if it contains <code>*</code> or <code>localhost</code></td><td>Empty by default; the shop's own pages don't need it. List only origins you own.</td></tr>
+    <tr><td><code>SHOP_SECRETS_KEY</code></td><td>Warning only, if empty</td><td>Optional. Encrypts the credentials saved in <code>integration-settings.json</code>. When unset on a new install, a random key is generated into <code>shop-install.properties</code>; shops that saved credentials before that keep a key derived from <code>JWT_SECRET</code>. No length rule.</td></tr>
   </table></div>
-  <div class="note warn"><b>Back up <code>shop-install.properties</code>:</b> This file holds your installation's secrets key. Keep an encrypted copy off-server. Without this key, stored payment secrets cannot be decrypted after moving to a new server.</div>
+  <div class="note warn"><b>Back up <code>shop-install.properties</code>:</b> It holds the generated JWT secret and secrets key. Keep a private copy off-server. Without the key, saved payment secrets can't be decrypted after moving to a new server, and you'd have to enter them again.</div>
 
   <h3 id="prod-gateways">4. Switching each gateway to live</h3>
   <p>Open <b>Admin → Integrations</b> in your browser. For each service you plan to offer to real shoppers, perform the live configuration switch:</p>
@@ -551,7 +551,7 @@ server {
         <li>Log in to your verified business account at pesapal.com.</li>
         <li>Retrieve your live <b>Consumer Key</b> and <b>Consumer Secret</b> from the merchant dashboard.</li>
         <li>In shop Admin → Integrations → Pesapal, select <b>Edit settings for: Production</b>.</li>
-        <li>Change the <b>API base URL</b> to the live endpoint: <code>https://pay.pesapal.com/v3</code>.</li>
+        <li>Check that the <b>API base URL</b> is the live endpoint <code>https://pay.pesapal.com/v3</code> (the Production tab is pre-filled with it).</li>
         <li>Paste the live credentials. Verify IPN URL is <code>https://shop.example.com/api/payments/pesapal/ipn</code>.</li>
         <li>Click <b>Save production</b>, test, and flip <b>Environment in use</b> to <b>Production</b>.</li>
       </ul>
@@ -567,7 +567,7 @@ server {
     <li><b>Google sign-in (Firebase)</b>
       <ul>
         <li>In Firebase Console → Authentication → Settings → Authorized domains, add <code>shop.example.com</code>.</li>
-        <li>In Google Cloud Console → APIs &amp; Services → Credentials → OAuth 2.0 Web Client, add <code>https://shop.example.com</code> under <b>Authorized JavaScript origins</b> for One Tap sign-in.</li>
+        <li>For One Tap: in <a href="https://console.cloud.google.com/auth/clients">Google Cloud → Google Auth Platform → Clients</a>, open the <i>Web client (auto created by Google Service)</i> and add <code>https://shop.example.com</code> under <b>Authorized JavaScript origins</b>.</li>
       </ul>
     </li>
   </ol>
@@ -575,11 +575,11 @@ server {
   <h3 id="prod-reset">5. Clearing test data: Restart store fresh</h3>
   <p>During sandbox testing, test orders, fake transactions, and test carts were created, temporarily reducing inventory. Before welcoming real customers, purge this testing history:</p>
   <ol class="steps">
-    <li>Log in as admin and navigate to <b>Admin → Overview</b>.</li>
+    <li>Log in as admin and navigate to <b>Admin → Overview</b> (the button is also on <b>Admin → Database</b>).</li>
     <li>Click <b>Restart store fresh</b>.</li>
-    <li>Confirm the prompt.</li>
+    <li>Confirm the prompt. It can't be undone.</li>
   </ol>
-  <div class="note ok"><b>What gets cleaned:</b> All test orders and line items are purged; reserved catalog stock is automatically restored to full original inventory; all guest and customer carts are cleared; payment attempt logs are reset; and invoice/order sequence numbers restart clean. Your catalog products, categories, pricing, branding, and integration credentials remain completely intact.</div>
+  <div class="note ok"><b>What gets cleaned:</b> all orders with their line items, checkout details, payment records and order notifications are deleted; the stock held by pending and paid orders goes back to the catalog; all guest and customer carts are cleared; and order numbers restart from #1. Products, categories, prices, customer and admin accounts, settings, branding and saved integration credentials are kept.</div>
 
   <h3 id="prod-smoke">6. Live smoke-testing and refund</h3>
   <p>Never declare a shop ready without verifying a real end-to-end payment with real currency:</p>
@@ -620,8 +620,8 @@ WantedBy=multi-user.target</code></pre>
     <li>Public domain configured with valid SSL/HTTPS certificate.</li>
     <li><code>SHOP_PUBLIC_URL=https://yourdomain.com</code> configured and verified.</li>
     <li>Production database (MariaDB / MySQL / PostgreSQL / SQL Server / Oracle) active with automated backups.</li>
-    <li><code>JWT_SECRET</code> set to a strong 32+ character random secret.</li>
-    <li>Admin password is strong (12+ characters); initial test admin passwords rotated.</li>
+    <li><code>SHOP_PRODUCTION</code> left at <code>true</code>; any <code>JWT_SECRET</code> you set yourself is 32+ random characters.</li>
+    <li>Admin password is strong (12+ characters); test accounts created while testing removed.</li>
     <li><code>shop-install.properties</code> safely backed up off-server.</li>
     <li>Each offered gateway tested in production mode and flipped to <b>Production</b> in Integrations.</li>
     <li>Transactional email verified with DKIM/SPF DNS records and test email delivered to inbox.</li>

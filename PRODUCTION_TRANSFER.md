@@ -12,9 +12,9 @@ A step-by-step guide for moving **Reactive Shop** from local sandbox testing to 
 
 Reactive Shop uses an isolated multi-environment architecture:
 
-- **Isolated Credentials**: Stored in `integration-settings.json`, encrypted via AES with `SHOP_SECRETS_KEY`.
+- **Isolated Credentials**: Stored in `integration-settings.json`. Secrets (keys, passwords) are encrypted with AES-GCM using `shop.secrets-key`, which the shop generates on first start into `shop-install.properties` (or takes from `SHOP_SECRETS_KEY`).
 - **Zero-Downtime Switching**: Every payment provider has distinct **Sandbox** and **Production** credential tabs under **Admin → Integrations**.
-- **No Interruption**: Switching an environment takes effect immediately without restarting the application server. In-flight sandbox sessions complete in sandbox, while all subsequent orders route to production.
+- **No Interruption**: Switching an environment takes effect immediately without restarting the application server. Payments already started finish (and are checked) in the environment they began in; new orders use the environment now in use.
 
 ---
 
@@ -61,7 +61,8 @@ server {
 ```
 
 ### 2.3 Forwarded Headers
-Set `SHOP_FORWARD_HEADERS=framework` in your environment. This instructs Netty to trust the `X-Forwarded-For` header set by Nginx, ensuring that built-in rate limiters track real client IPs instead of the reverse proxy's IP.
+Set `SHOP_FORWARD_HEADERS=framework` in your environment. This makes the shop trust the `X-Forwarded-*` headers set by Nginx, so the built-in rate limiters track real client IPs instead of the reverse proxy's IP.
+Only set it when the shop is reachable **only** through your proxy: anyone who can reach port 8080 directly could forge these headers. Leave it at the default (`none`) otherwise.
 
 ---
 
@@ -70,16 +71,20 @@ Set `SHOP_FORWARD_HEADERS=framework` in your environment. This instructs Netty t
 In-memory H2 is for testing only; all tables and data vanish when the process stops. Production requires a durable, relational database engine.
 
 ### 3.1 Supported Databases
-- **MariaDB** (10.6+)
-- **MySQL** (8.0+)
-- **PostgreSQL** (14+)
-- **Microsoft SQL Server** (2019+)
-- **Oracle Database** (19c+)
+- **MariaDB** (the Docker setup uses MariaDB 11.4; development used 10.4, as shipped with XAMPP)
+- **MySQL**
+- **PostgreSQL**
+- **Microsoft SQL Server**
+- **Oracle Database**
+
+No minimum version is enforced or has been certified for each engine: use a version that is still supported
+by its vendor. MariaDB and PostgreSQL are the engines exercised most in development; test SQL Server and
+Oracle on a staging copy before relying on them.
 
 ### 3.2 Configuration
 Supply both R2DBC and Flyway JDBC URLs via environment variables:
 ```env
-SPRING_R2DBC_URL=r2dbc:mariadb://localhost:3306/reactive_shop
+SPRING_R2DBC_URL=r2dbc:mysql://localhost:3306/reactive_shop
 SPRING_R2DBC_USERNAME=shop_user
 SPRING_R2DBC_PASSWORD=StrongDatabasePasswordHere
 
@@ -88,7 +93,7 @@ SPRING_FLYWAY_USER=shop_user
 SPRING_FLYWAY_PASSWORD=StrongDatabasePasswordHere
 ```
 
-On first startup against a clean database, Flyway automatically creates the full schema, indexes, initial catalog, and settings.
+`r2dbc:mysql://` and `jdbc:mariadb://` serve both MariaDB and MySQL. On first startup against a clean database, Flyway automatically creates the full schema, indexes, demo catalog, and settings; the setup wizard at `/setup.html` then creates the first admin account.
 
 ### 3.3 Automated Backups
 Schedule daily database dumps via cron:
@@ -104,17 +109,17 @@ pg_dump -U postgres -d reactive_shop -F c -f /backups/db-$(date +\%F).dump
 
 ## 4. Production Safety Checks & Secret Hardening
 
-When started with `SHOP_PRODUCTION=true` (the default), `ProductionSafetyCheck` verifies essential security parameters at boot and **refuses to start** if unsafe development values remain.
+When started with `SHOP_PRODUCTION=true` (the default), `ProductionSafetyCheck` checks the settings below at boot and **refuses to start** if one is unsafe. With `SHOP_PRODUCTION=false` the same problems are only logged as warnings.
 
-| Setting | Production Requirement | Description |
+| Setting | Checked at startup | Notes |
 |---|---|---|
-| `SHOP_PRODUCTION` | `true` | Enables strict production validations and enforces IP rate limiting. |
-| `JWT_SECRET` | 32+ characters | Random secret used to sign customer and admin auth tokens. |
-| `ADMIN_PASSWORD` | 12+ characters | Must not be `admin123`. Rotate the default admin password. |
-| `SHOP_SECRETS_KEY` | 32+ characters | AES key encrypting integration credentials. Back up `shop-install.properties`. |
-| `SHOP_CORS_ALLOWED_ORIGINS` | Empty or your site origins | Disallows wildcard `*` or `localhost`. |
+| `SHOP_PRODUCTION` | — | `true` by default. Turns the checks below into hard failures, and applies rate limits to localhost too. Set `false` only on a development machine. |
+| `JWT_SECRET` | **Refuses to start** if shorter than 32 characters or the old published development default | Optional: when unset, a random secret is generated on first start and kept in `shop-install.properties`. Changing it signs everyone out. |
+| `ADMIN_PASSWORD` | **Refuses to start** if set and shorter than 12 characters or `admin123` | Optional: only used with `ADMIN_EMAIL` to create the first admin without the setup wizard. Not checked when empty. |
+| `SHOP_CORS_ALLOWED_ORIGINS` | **Refuses to start** if it contains `*` or `localhost` | Empty by default (the shop's own pages don't need it). List only origins you own. |
+| `SHOP_SECRETS_KEY` | Warning only, if empty | Optional: when unset on a new install, a random key is generated into `shop-install.properties`. Shops that saved credentials before that existed keep a key derived from `JWT_SECRET`; set `SHOP_SECRETS_KEY` there so a new JWT secret doesn't make saved credentials unreadable. No length rule. |
 
-> **Critical**: Back up `shop-install.properties` off-server. Without `shop.secrets-key`, stored credentials in `integration-settings.json` cannot be decrypted after moving to a new server.
+> **Critical**: Back up `shop-install.properties` off-server. It holds the generated `jwt.secret` and `shop.secrets-key`; without the key, the credentials saved in `integration-settings.json` can't be decrypted after moving to a new server (you'd have to enter them again).
 
 ---
 
@@ -137,14 +142,14 @@ Configure live credentials in **Admin → Integrations**. For each gateway you o
 3. Under **My Apps → Production Apps**, copy your live **Consumer Key** and **Consumer Secret**. Safaricom provides your production **Passkey**.
 4. In shop **Admin → Integrations → M-Pesa Express**, select **Edit settings for: Production**.
 5. Paste your live Consumer Key, Consumer Secret, Business Shortcode, and Passkey.
-6. Verify Callback URL is `https://shop.example.com/api/payment/callback`.
+6. Verify the Callback URL is your `SHOP_PUBLIC_URL` followed by `/api/payment/callback` (e.g. `https://shop.example.com/api/payment/callback`).
 7. Click **Save production**, click **Test**, and set **Environment in use** to **Production**.
 
 ### 5.3 Pesapal
 1. Log in to your live merchant portal at [pesapal.com](https://www.pesapal.com/).
 2. Retrieve your live **Consumer Key** and **Consumer Secret**.
 3. In shop **Admin → Integrations → Pesapal**, select **Edit settings for: Production**.
-4. Change the API Base URL to: `https://pay.pesapal.com/v3`.
+4. Check that the API Base URL is the live address `https://pay.pesapal.com/v3` (the Production tab is pre-filled with it).
 5. Enter the live Key and Secret. Ensure IPN URL is `https://shop.example.com/api/payments/pesapal/ipn`.
 6. Click **Save production**, click **Test**, and set **Environment in use** to **Production**.
 
@@ -157,7 +162,7 @@ Configure live credentials in **Admin → Integrations**. For each gateway you o
 
 ### 5.5 Google Sign-In (Firebase)
 1. In [Firebase Console](https://console.firebase.google.com/) → **Authentication → Settings → Authorized domains**, add `shop.example.com`.
-2. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → **OAuth 2.0 Client IDs**, add `https://shop.example.com` to **Authorized JavaScript origins** for One Tap.
+2. For One Tap: in [Google Cloud → Google Auth Platform → Clients](https://console.cloud.google.com/auth/clients), open the *Web client (auto created by Google Service)* and add `https://shop.example.com` to **Authorized JavaScript origins**.
 
 ---
 
@@ -165,17 +170,16 @@ Configure live credentials in **Admin → Integrations**. For each gateway you o
 
 Before opening the store to public shoppers, purge any mock orders and reserved stock accumulated during sandbox testing:
 
-1. Log in as admin and navigate to **Admin → Overview**.
-2. Click **Restart store fresh** in the top-right toolbar.
-3. Confirm the prompt.
+1. Log in as admin and navigate to **Admin → Overview** (the button is also on **Admin → Database**).
+2. Click **Restart store fresh** at the top of the page.
+3. Confirm the prompt. It can't be undone.
 
 **What this resets**:
-- Purges all test orders and line items.
-- Restores all reserved catalog stock back to original quantities.
-- Clears test shopping carts (both guest and registered).
-- Resets payment tracking logs.
-- Resets invoice and order sequence counters.
-- **Preserved intact**: Catalog items, categories, pricing, branding, and all saved integration credentials.
+- Deletes all orders, their line items, checkout details and payment records, and the notifications about them.
+- Returns the stock held by pending and paid orders to the catalog.
+- Clears all shopping carts (guest and signed-in).
+- Restarts order numbering from #1.
+- **Kept**: products, categories, prices, customer and admin accounts, settings, branding, and saved integration credentials.
 
 ---
 
@@ -236,7 +240,7 @@ sudo systemctl status reactive-shop
 - [ ] Public domain points to server over HTTPS with a valid SSL certificate.
 - [ ] `SHOP_PUBLIC_URL` set to `https://yourdomain.com` (no trailing slash).
 - [ ] Persistent database (MariaDB / MySQL / PostgreSQL) active with regular backups.
-- [ ] `SHOP_PRODUCTION=true` enabled; strong `JWT_SECRET` and `ADMIN_PASSWORD`.
+- [ ] `SHOP_PRODUCTION=true` (the default); if you set `JWT_SECRET` or `ADMIN_PASSWORD` yourself, they're long and random.
 - [ ] `shop-install.properties` backed up off-server.
 - [ ] Gateway credentials verified under **Admin → Integrations → Production** and toggled to **Production**.
 - [ ] Transactional email DNS records (SPF, DKIM, DMARC) verified and test email received in inbox.

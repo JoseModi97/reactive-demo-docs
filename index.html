@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connecting your own services — Reactive Shop</title>
+<style>
+  :root {
+    --bg: #f8f9fc; --surface: #ffffff; --ink: #0f172a; --body: #334155; --muted: #64748b; --line: #e2e8f0;
+    --brand: #00aa77; --brand-ink: #00825a; --brand-tint: #e6f7f2;
+    --warn-bg: #fff7e6; --warn-ink: #8a5300; --warn-line: #f5d38f;
+    --info-bg: #eef4ff; --info-ink: #1e4fb8; --info-line: #c7d8fb;
+    --danger-bg: #fdecec; --danger-ink: #a61b1b; --danger-line: #f4b9b9;
+    --code-bg: #f1f5f9; --radius: 12px; --shadow: 0 1px 2px rgba(15,23,42,.06), 0 8px 24px -12px rgba(15,23,42,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1120; --surface: #111a2e; --ink: #e8eef9; --body: #c3cde0; --muted: #8b98b2; --line: #22304d;
+      --brand: #21c48f; --brand-ink: #4fd8a8; --brand-tint: #0f2e26;
+      --warn-bg: #2b2210; --warn-ink: #f2c46b; --warn-line: #5a4519;
+      --info-bg: #10203f; --info-ink: #93b6f7; --info-line: #24406f;
+      --danger-bg: #351317; --danger-ink: #f3a3a3; --danger-line: #5c2229;
+      --code-bg: #17233b; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  [id] { scroll-margin-top: 24px; }
+  .toc li a.active { background: var(--brand-tint); color: var(--brand-ink); font-weight: 700; }
+  body { margin: 0; background: var(--bg); color: var(--body); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  a { color: var(--brand-ink); }
+  code, kbd { font: .875em/1.4 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; background: var(--code-bg); padding: .1em .35em; border-radius: 6px; color: var(--ink); overflow-wrap: anywhere; }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 10px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  h1, h2, h3 { color: var(--ink); line-height: 1.25; letter-spacing: -.01em; }
+  h1 { font-size: clamp(1.75rem, 3vw, 2.4rem); margin: 0 0 .5rem; }
+  h2 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h3 { font-size: 1.15rem; margin: 1.75rem 0 .5rem; }
+  .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 40px; max-width: 1240px; margin: 0 auto; padding: 32px 24px 80px; }
+  nav.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; font-size: .92rem; }
+  .toc .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ink); margin-bottom: 18px; }
+  .toc .mark { width: 34px; height: 34px; border-radius: 10px; background: var(--brand); color: #fff; display: grid; place-items: center; font-size: 18px; }
+  .toc ol { list-style: none; margin: 0; padding: 0; }
+  .toc li a { display: block; padding: 6px 10px; border-radius: 8px; color: var(--body); text-decoration: none; }
+  .toc li a:hover { background: var(--brand-tint); color: var(--brand-ink); }
+  .toc .sub a { padding-left: 24px; font-size: .86rem; color: var(--muted); }
+  main { min-width: 0; }
+  .hero { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 32px; box-shadow: var(--shadow); margin-bottom: 28px; }
+  .hero p { font-size: 1.07rem; max-width: 62ch; margin: .25rem 0 0; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; font-weight: 700; color: var(--brand-ink); }
+  section.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 28px 32px; margin: 0 0 28px; box-shadow: var(--shadow); }
+  .section-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 8px; }
+  .section-head .num { flex: none; width: 40px; height: 40px; border-radius: 12px; background: var(--brand-tint); color: var(--brand-ink); display: grid; place-items: center; font-weight: 800; }
+  .lead { color: var(--muted); margin: 0; }
+  .pill { display: inline-block; font-size: .75rem; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: var(--brand-tint); color: var(--brand-ink); margin-right: 6px; vertical-align: middle; }
+  .pill.grey { background: var(--code-bg); color: var(--muted); }
+  ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 12px 0; }
+  ol.steps > li { counter-increment: step; position: relative; padding: 2px 0 12px 44px; }
+  ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--brand); color: #fff; font-weight: 700; font-size: .85rem; display: grid; place-items: center; }
+  ol.steps > li::after { content: ''; position: absolute; left: 13.5px; top: 32px; bottom: 2px; width: 1px; background: var(--line); }
+  ol.steps > li:last-child::after { display: none; }
+  figure { margin: 14px 0 22px; }
+  figure a { display: block; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: #fff; }
+  figure img { display: block; width: 100%; height: auto; }
+  figcaption { font-size: .86rem; color: var(--muted); margin-top: 8px; }
+  .note { border: 1px solid var(--info-line); background: var(--info-bg); color: var(--info-ink); border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .note.warn { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn-ink); }
+  .note.danger { border-color: var(--danger-line); background: var(--danger-bg); color: var(--danger-ink); }
+  .note.ok { border-color: color-mix(in srgb, var(--brand) 35%, transparent); background: var(--brand-tint); color: var(--brand-ink); }
+  .note b:first-child { display: block; margin-bottom: 2px; }
+  .note code { background: rgba(127,127,127,.12); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: .93rem; }
+  .table-wrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; background: var(--code-bg); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 16px 0; }
+  .tile { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: var(--bg); }
+  .tile h4 { margin: 0 0 4px; color: var(--ink); font-size: 1rem; }
+  .tile p { margin: 0; font-size: .9rem; color: var(--muted); }
+  a.tile { display: block; text-decoration: none; color: inherit; transition: border-color .15s, box-shadow .15s; }
+  a.tile:hover { border-color: var(--brand); box-shadow: var(--shadow); }
+  .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 16px 0 8px; }
+  .choice { border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: var(--bg); }
+  .choice h4 { margin: 0 0 6px; color: var(--ink); }
+  .choice p, .choice ul { margin: 0; font-size: .9rem; }
+  .choice ul { padding-left: 18px; margin-top: 6px; }
+  .check { list-style: none; padding: 0; }
+  .check li { padding-left: 30px; position: relative; margin: 8px 0; }
+  .check li::before { content: '✓'; position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 6px; background: var(--brand-tint); color: var(--brand-ink); font-weight: 800; font-size: .8rem; display: grid; place-items: center; }
+  footer { color: var(--muted); font-size: .85rem; text-align: center; margin-top: 40px; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; gap: 16px; padding: 16px; }
+    nav.toc { position: static; max-height: none; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+    .toc .sub { display: none; }
+    section.card, .hero { padding: 20px 18px; border-radius: 14px; }
+  }
+  @media print {
+    nav.toc { display: none; }
+    .layout { display: block; }
+    section.card, .hero { box-shadow: none; break-inside: avoid-page; }
+    figure a { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" aria-label="Contents">
+  <div class="brand"><span class="mark">⚡</span>Reactive Shop setup</div>
+  <ol>
+    <li><a href="#start">1. Before you start</a></li>
+    <li class="sub"><a href="#start-integrations">Where settings go</a></li>
+    <li class="sub"><a href="#start-sandbox">Sandbox vs production</a></li>
+    <li class="sub"><a href="#start-url">Public address</a></li>
+    <li><a href="#paypal">2. PayPal</a></li>
+    <li class="sub"><a href="#paypal-sandbox">Sandbox app</a></li>
+    <li class="sub"><a href="#paypal-test">Test a payment</a></li>
+    <li class="sub"><a href="#paypal-live">Going live</a></li>
+    <li><a href="#mpesa">3. M-Pesa (Daraja)</a></li>
+    <li class="sub"><a href="#mpesa-sandbox">Sandbox app</a></li>
+    <li class="sub"><a href="#mpesa-live">Going live</a></li>
+    <li><a href="#pesapal">4. Pesapal</a></li>
+    <li class="sub"><a href="#pesapal-sandbox">Sandbox demo keys</a></li>
+    <li class="sub"><a href="#pesapal-live">Going live</a></li>
+    <li><a href="#email">5. Email (SMTP)</a></li>
+    <li class="sub"><a href="#email-brevo">Brevo</a></li>
+    <li class="sub"><a href="#email-gmail">Gmail</a></li>
+    <li class="sub"><a href="#email-host">Your web host</a></li>
+    <li><a href="#google">6. Google sign-in</a></li>
+    <li><a href="#rates">7. Exchange rates</a></li>
+    <li><a href="#production">8. Transfer to Production</a></li>
+    <li class="sub"><a href="#prod-server">Server &amp; HTTPS proxy</a></li>
+    <li class="sub"><a href="#prod-database">Production database</a></li>
+    <li class="sub"><a href="#prod-security">Safety &amp; security checks</a></li>
+    <li class="sub"><a href="#prod-gateways">Switching gateways live</a></li>
+    <li class="sub"><a href="#prod-reset">Clearing test orders</a></li>
+    <li class="sub"><a href="#prod-smoke">Smoke test &amp; refund</a></li>
+    <li class="sub"><a href="#prod-service">Systemd background service</a></li>
+    <li class="sub"><a href="#prod-checklist">Go-live checklist</a></li>
+    <li><a href="#env">9. Environment variables</a></li>
+    <li><a href="#trouble">10. Troubleshooting</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="hero">
+  <div class="eyebrow">Setup guide</div>
+  <h1>Connecting your own payment, email and sign-in accounts</h1>
+  <p>Reactive Shop talks to PayPal, M-Pesa, Pesapal, an email server and Google. Every one of these
+    must be <b>your own</b> account, so the money, the emails and the customer data are yours. This guide
+    walks through each provider, from a free test (sandbox) account to taking real payments, with screenshots
+    of every screen.</p>
+  <div class="grid">
+    <a class="tile" href="#paypal"><h4>PayPal</h4><p>Cards and PayPal balance. Free sandbox; Business account to go live.</p></a>
+    <a class="tile" href="#mpesa"><h4>M-Pesa Express</h4><p>STK push on the shopper's phone. Free sandbox; a paybill or till to go live.</p></a>
+    <a class="tile" href="#pesapal"><h4>Pesapal</h4><p>Mobile money and cards across East Africa. Public sandbox keys; merchant account to go live.</p></a>
+    <a class="tile" href="#email"><h4>Email (SMTP)</h4><p>Order confirmations and password resets. Brevo, Gmail or your web host.</p></a>
+    <a class="tile" href="#google"><h4>Google sign-in</h4><p>Optional "Continue with Google". Free Firebase project.</p></a>
+  </div>
+  <div class="note"><b>You only need what you'll use.</b> Each service is optional and switched off until it's
+    set up: checkout only offers the payment methods you've configured, and the shop works without email or
+    Google sign-in. Payments are tested in <b>sandbox</b> (fake money) before you switch them to <b>production</b>.</div>
+</header>
+
+<!-- ============================================================ 1 -->
+<section class="card" id="start">
+  <div class="section-head"><span class="num">1</span><div><h2>Before you start</h2>
+    <p class="lead">Where the settings go, sandbox vs production, and the one address everything needs.</p></div></div>
+
+  <h3 id="start-integrations">Where you enter the keys: Admin → Integrations</h3>
+  <p>Sign in as the admin and open <b>Integrations</b> in the sidebar. Every service has a card with its fields,
+    a <b>Sandbox / Production</b> switch, separate settings for each environment, a <b>Test</b> button and an
+    <b>Offered at checkout</b> switch. Changes apply straight away, without restarting the shop.</p>
+  <figure><a href="img/app-1-integrations.jpg"><img src="img/app-1-integrations.jpg" width="800" height="537" alt="Admin, Integrations page: status of every service and the Pesapal card with its Sandbox and Production switch" loading="lazy"></a>
+    <figcaption>Admin → Integrations. The strip at the top shows every service's status at a glance.</figcaption></figure>
+
+  <div class="note ok"><b>Your keys stay private.</b> Secrets you save here (consumer secrets, client secrets,
+    SMTP passwords) are stored encrypted in <code>integration-settings.json</code> next to the app. The
+    encryption key is <code>shop.secrets-key</code> in <code>shop-install.properties</code> (or the
+    <code>SHOP_SECRETS_KEY</code> environment variable). Back that file up and keep it private: without it, the
+    saved secrets can't be read.</div>
+
+  <h3 id="start-sandbox">Sandbox first, production later</h3>
+  <p>Each payment provider has two separate sets of keys:</p>
+  <ul>
+    <li><b>Sandbox</b>: a test copy of the provider. No real money moves; you pay with test accounts and test phone numbers.</li>
+    <li><b>Production</b> (also called <i>live</i>): real payments into your account. Usually needs a verified business account.</li>
+  </ul>
+  <p>In each card, fill in <b>Edit settings for: Sandbox</b>, test, and later fill in the <b>Production</b> tab and flip
+    <b>Environment in use</b> to Production. Payments already started finish in the environment they began in.</p>
+
+  <h3 id="start-url">Your shop's public address</h3>
+  <p>Payment providers send the shopper back to your shop, and post payment results to it. They need an address
+    reachable from the internet, over HTTPS in production. Set it once and the callback URLs in Integrations follow it:</p>
+  <pre><code>SHOP_PUBLIC_URL=https://shop.example.com</code></pre>
+  <div class="note warn"><b>Testing on your own computer?</b> <code>http://localhost:8080</code> can't receive M-Pesa
+    or Pesapal notifications, because their servers can't reach your computer. Either test those two on a server,
+    or run a tunnel such as <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/">Cloudflare Tunnel</a>
+    or <a href="https://ngrok.com/">ngrok</a> and use its https address as <code>SHOP_PUBLIC_URL</code>.</div>
+</section>
+
+<!-- ============================================================ 2 PayPal -->
+<section class="card" id="paypal">
+  <div class="section-head"><span class="num">2</span><div><h2>PayPal</h2>
+    <p class="lead">PayPal balance and cards, with PayPal's buttons inside the checkout dialog.
+      <span class="pill">Sandbox: free</span><span class="pill grey">Live: PayPal Business account</span></p></div></div>
+
+  <h3 id="paypal-sandbox">Create your sandbox app</h3>
+  <ol class="steps">
+    <li>Sign in at <a href="https://developer.paypal.com/dashboard/">developer.paypal.com</a> with your PayPal account
+      (or create one). Make sure the switch at the top left says <b>Sandbox</b>, then open <b>Apps &amp; Credentials</b>.
+      <figure><a href="img/paypal-1-apps.jpg"><img src="img/paypal-1-apps.jpg" width="800" height="537" alt="PayPal Developer Dashboard, API Credentials page in Sandbox mode with the Create App button" loading="lazy"></a>
+        <figcaption>Apps &amp; Credentials in Sandbox mode. The yellow banner explains that live keys need a Business account.</figcaption></figure></li>
+    <li>Click <b>Create App</b>. Give it a name (e.g. your shop's name), keep the type <b>Merchant</b>, leave the
+      suggested <b>Sandbox Business Account</b>, and click <b>Create App</b>.
+      <figure><a href="img/paypal-2-create-app.jpg"><img src="img/paypal-2-create-app.jpg" width="800" height="537" alt="Create App dialog with an app name, Merchant type and sandbox business account" loading="lazy"></a>
+        <figcaption>Create App: name, Merchant, and the sandbox business account that receives test payments.</figcaption></figure></li>
+    <li>The app opens on its <b>API credentials</b>. Copy the <b>Client ID</b>, then click the eye or copy icon next
+      to <b>Secret key 1</b> and copy the secret.
+      <figure><a href="img/paypal-3-credentials.jpg"><img src="img/paypal-3-credentials.jpg" width="800" height="537" alt="The new app's API credentials: Client ID and Secret key 1 (masked in this screenshot)" loading="lazy"></a>
+        <figcaption>Client ID and Secret key 1. (Masked here; yours show in full.)</figcaption></figure></li>
+    <li>In the shop, open <b>Admin → Integrations → PayPal</b>, stay on <b>Edit settings for: Sandbox</b>, paste the
+      <b>Client ID</b> and <b>Client secret</b>, and click <b>Save sandbox</b>, then <b>Test</b>. Switch
+      <b>Offered at checkout</b> on.
+      <figure><a href="img/app-4-paypal.jpg"><img src="img/app-4-paypal.jpg" width="692" height="579" alt="The shop's PayPal card with Client ID, Client secret, return and cancel URLs, brand name and currencies" loading="lazy"></a>
+        <figcaption>The shop's PayPal card. Return and cancel URLs are filled in from your public address.</figcaption></figure></li>
+  </ol>
+  <div class="note"><b>Currencies.</b> PayPal doesn't accept Kenyan shillings (KES). The <b>Currencies</b> field lists
+    what PayPal may charge in (default <code>USD,EUR,GBP,CAD,AUD</code>); shoppers using another currency are charged
+    in your shop currency if it's listed, otherwise in the first one.</div>
+
+  <h3 id="paypal-test">Test a payment</h3>
+  <p>PayPal creates two test accounts for you under <b>Testing Tools → Sandbox Accounts</b>: a <i>Business</i> one that
+    receives the money and a <i>Personal</i> one to pay with. Open the Personal account's <b>⋮ → View/edit account</b>
+    to see its email and password, then check out in your shop with PayPal and log in to the PayPal window with it.</p>
+  <figure><a href="img/paypal-4-sandbox-accounts.jpg"><img src="img/paypal-4-sandbox-accounts.jpg" width="800" height="537" alt="Sandbox test accounts: one Business and one Personal account" loading="lazy"></a>
+    <figcaption>Sandbox test accounts. Pay with the Personal one; the Business one receives the payment.</figcaption></figure>
+
+  <h3 id="paypal-live">Going live</h3>
+  <ol class="steps">
+    <li>Upgrade to (or sign up for) a <b>PayPal Business</b> account and confirm your email and bank details with PayPal.</li>
+    <li>On developer.paypal.com switch the toggle to <b>Live</b>, open <b>Apps &amp; Credentials</b>, click
+      <b>Create App</b>, and copy the live <b>Client ID</b> and <b>Secret</b>.</li>
+    <li>In <b>Integrations → PayPal</b>, open <b>Edit settings for: Production</b>, paste them, save, test, then set
+      <b>Environment in use</b> to <b>Production</b>.</li>
+  </ol>
+</section>
+
+<!-- ============================================================ 3 M-Pesa -->
+<section class="card" id="mpesa">
+  <div class="section-head"><span class="num">3</span><div><h2>M-Pesa Express (Safaricom Daraja)</h2>
+    <p class="lead">The shopper gets an M-Pesa PIN prompt on their phone (STK push).
+      <span class="pill">Sandbox: free</span><span class="pill grey">Live: an M-Pesa paybill or till</span></p></div></div>
+
+  <h3 id="mpesa-sandbox">Create your sandbox app</h3>
+  <ol class="steps">
+    <li>Sign up or log in at <a href="https://developer.safaricom.co.ke/">developer.safaricom.co.ke</a> and open
+      <b>My Apps</b> from your account menu. Click <b>Create Sandbox App</b>.</li>
+    <li>Name the app (letters, numbers, spaces and underscores only), tick <b>Lipa Na M-Pesa Sandbox</b> (the product
+      behind M-Pesa Express), and click <b>Create App</b>.
+      <figure><a href="img/daraja-2-create-app.jpg"><img src="img/daraja-2-create-app.jpg" width="800" height="537" alt="Daraja Creating a Sandbox App dialog with Lipa Na M-Pesa Sandbox ticked" loading="lazy"></a>
+        <figcaption>Tick <b>Lipa Na M-Pesa Sandbox</b>. That's the only product the shop needs.</figcaption></figure></li>
+    <li>Your app appears in <b>My Apps</b> with <b>M-PESA EXPRESS Sandbox</b>. Use the copy icons next to
+      <b>Consumer Key</b> and <b>Consumer Secret</b>.
+      <figure><a href="img/daraja-3-app-keys.jpg"><img src="img/daraja-3-app-keys.jpg" width="800" height="537" alt="My Apps with the new sandbox app, its consumer key and secret, passkey and shortcode 174379" loading="lazy"></a>
+        <figcaption>Each app card has its consumer key, consumer secret, passkey and shortcode, with copy buttons.</figcaption></figure></li>
+    <li>The sandbox <b>Business ShortCode</b> (<code>174379</code>) and <b>Passkey</b> are on the
+      <b>Test Credentials</b> page; they're the same for every developer. The shop already fills them in for sandbox.
+      <figure><a href="img/daraja-4-test-credentials.jpg"><img src="img/daraja-4-test-credentials.jpg" width="800" height="537" alt="Daraja Test Credentials: initiator, party A and B, test phone number, business shortcode 174379 and passkey" loading="lazy"></a>
+        <figcaption>Test Credentials: shortcode, passkey and a test phone number.</figcaption></figure></li>
+    <li>In the shop, open <b>Integrations → M-Pesa Express</b>, paste the <b>Consumer key</b> and <b>Consumer secret</b>,
+      check the <b>Callback URL</b> is your public https address followed by <code>/api/payment/callback</code>,
+      then <b>Save sandbox</b>, <b>Test</b>, and switch <b>Offered at checkout</b> on.
+      <figure><a href="img/app-3-mpesa.jpg"><img src="img/app-3-mpesa.jpg" width="692" height="580" alt="The shop's M-Pesa Express card asking for consumer key and secret, with shortcode 174379 and the sandbox passkey filled in" loading="lazy"></a>
+        <figcaption>The shop's M-Pesa card. Key and secret are required; the sandbox shortcode and passkey are already there.</figcaption></figure></li>
+  </ol>
+  <div class="note warn"><b>The callback must be public HTTPS.</b> Safaricom posts the payment result to the callback
+    URL. On <code>localhost</code> the prompt still reaches the phone, but your shop never hears the result. See
+    <a href="#start">Before you start</a> for testing with a tunnel.</div>
+
+  <h3 id="mpesa-live">Going live</h3>
+  <ol class="steps">
+    <li>You need an M-Pesa <b>paybill or till number</b> with <b>Lipa Na M-Pesa Online</b> enabled, and the username of
+      its <b>Business Administrator</b> or <b>Business Manager</b> on the M-Pesa Organization portal.</li>
+    <li>On Daraja open <b>Go Live</b>, enter your organisation's shortcode, name and M-Pesa username, accept the terms,
+      and confirm with the one-time code sent to that user's phone.
+      <figure><a href="img/daraja-5-go-live.jpg"><img src="img/daraja-5-go-live.jpg" width="800" height="537" alt="Daraja Go Live form: verification type, organization shortcode, organization name and M-PESA username" loading="lazy"></a>
+        <figcaption>Go Live: your shortcode and the M-Pesa portal user who approves the request.</figcaption></figure></li>
+    <li>A <b>production app</b> appears under <b>My Apps → Production Apps</b> with its own consumer key and secret.
+      Safaricom gives you the production <b>passkey</b> for your shortcode as part of going live.</li>
+    <li>In <b>Integrations → M-Pesa Express</b>, open <b>Edit settings for: Production</b>, enter the production key,
+      secret, your shortcode and passkey, save, test, then set <b>Environment in use</b> to <b>Production</b>.</li>
+  </ol>
+</section>
+
+<!-- ============================================================ 4 Pesapal -->
+<section class="card" id="pesapal">
+  <div class="section-head"><span class="num">4</span><div><h2>Pesapal</h2>
+    <p class="lead">Mobile money and cards on Pesapal's hosted payment page.
+      <span class="pill">Sandbox: public demo keys</span><span class="pill grey">Live: Pesapal merchant account</span></p></div></div>
+
+  <h3 id="pesapal-sandbox">Sandbox</h3>
+  <p>Pesapal publishes ready-made demo merchant keys for each country, so there's no sandbox sign-up:</p>
+  <ol class="steps">
+    <li>Open <a href="https://developer.pesapal.com/api3-demo-keys.txt">developer.pesapal.com/api3-demo-keys.txt</a> and copy
+      the <code>consumer_key</code> and <code>consumer_secret</code> for your country (e.g. <i>Kenyan Merchant</i>).</li>
+    <li>In <b>Integrations → Pesapal</b>, keep the <b>API base URL</b> at the sandbox address
+      <code>https://cybqa.pesapal.com/pesapalv3</code>, paste the key and secret, save, test, and switch
+      <b>Offered at checkout</b> on.
+      <figure><a href="img/app-2-pesapal.jpg"><img src="img/app-2-pesapal.jpg" width="692" height="579" alt="The shop's Pesapal card: API base URL, consumer key and secret, callback URL, IPN URL and currencies" loading="lazy"></a>
+        <figcaption>The shop's Pesapal card. Callback and IPN URLs come from your public address.</figcaption></figure></li>
+  </ol>
+  <figure><a href="img/pesapal-1-base-urls.jpg"><img src="img/pesapal-1-base-urls.jpg" width="800" height="537" alt="Pesapal API 3.0 reference: sandbox and live base URLs" loading="lazy"></a>
+    <figcaption>Pesapal's two base URLs: <code>cybqa.pesapal.com/pesapalv3</code> (sandbox) and <code>pay.pesapal.com/v3</code> (live).</figcaption></figure>
+
+  <h3 id="pesapal-live">Going live</h3>
+  <ol class="steps">
+    <li>Open a merchant account at <a href="https://www.pesapal.com/">pesapal.com</a> and complete Pesapal's business
+      verification.</li>
+    <li>Get your <b>live consumer key and secret</b> from Pesapal for that merchant account (from your merchant
+      dashboard, or ask Pesapal support if they aren't shown there).</li>
+    <li>In <b>Integrations → Pesapal → Production</b>, set the API base URL to <code>https://pay.pesapal.com/v3</code>,
+      paste the live key and secret, save, test, and set <b>Environment in use</b> to <b>Production</b>.</li>
+  </ol>
+  <div class="note warn"><b>The IPN URL must be reachable from the internet.</b> Pesapal confirms each payment by calling
+    <code>/api/payments/pesapal/ipn</code> on your shop. The shop registers this address with Pesapal by itself; it
+    only has to be a public https address.</div>
+</section>
+
+<!-- ============================================================ 5 Email -->
+<section class="card" id="email">
+  <div class="section-head"><span class="num">5</span><div><h2>Email (SMTP)</h2>
+    <p class="lead">Order confirmations, password resets, email verification and copies of notifications.</p></div></div>
+
+  <p>The shop sends email through any SMTP server. Pick one:</p>
+  <div class="choices">
+    <div class="choice"><h4>Brevo <span class="pill">Recommended</span></h4><p>A transactional email service.</p>
+      <ul><li>Free plan: 300 emails a day</li><li>Best delivery to inboxes</li><li>Needs a domain you own for the sender address</li></ul></div>
+    <div class="choice"><h4>Gmail</h4><p>Your Google account.</p>
+      <ul><li>Quick to try</li><li>Sending limits (about 500 a day)</li><li>Mail comes from your Gmail address</li></ul></div>
+    <div class="choice"><h4>Your web host</h4><p>The mailbox that comes with your hosting (cPanel, Plesk…).</p>
+      <ul><li>Already paid for</li><li>Mail from your own domain</li><li>Delivery depends on the host</li></ul></div>
+  </div>
+
+  <h3 id="email-brevo">Option A: Brevo</h3>
+  <ol class="steps">
+    <li>Create a free account at <a href="https://www.brevo.com/">brevo.com</a>. Open <b>Settings → SMTP &amp; API</b>.
+      The <b>SMTP</b> tab shows the server, port and your login.
+      <figure><a href="img/brevo-1-smtp-settings.jpg"><img src="img/brevo-1-smtp-settings.jpg" width="800" height="537" alt="Brevo SMTP and API settings: SMTP server smtp-relay.brevo.com, port 587 and the SMTP login" loading="lazy"></a>
+        <figcaption>Your SMTP settings: server <code>smtp-relay.brevo.com</code>, port <code>587</code>, and a login ending in <code>@smtp-brevo.com</code>.</figcaption></figure></li>
+    <li>Click <b>Generate SMTP key</b>. The first time, Brevo asks you to verify a phone number.
+      <figure><a href="img/brevo-2-verify-phone.jpg"><img src="img/brevo-2-verify-phone.jpg" width="800" height="537" alt="Brevo asks for a phone number to secure the account before creating keys" loading="lazy"></a>
+        <figcaption>A one-time phone check before your first key.</figcaption></figure></li>
+    <li>Name the key (e.g. your shop's name) and click <b>Generate</b>. <b>Copy it immediately</b>: Brevo shows it only
+      once. It then appears in the list, masked.
+      <figure><a href="img/brevo-4-smtp-key.jpg"><img src="img/brevo-4-smtp-key.jpg" width="800" height="556" alt="Brevo SMTP key list with one active key (masked)" loading="lazy"></a>
+        <figcaption>Your SMTP keys. Lost a key? Generate a new one and delete the old.</figcaption></figure></li>
+    <li>Under <b>Senders, domains, IPs</b>, add the address your shop sends from and <b>authenticate its domain</b>
+      (Brevo shows the DNS records to add at your domain registrar). A free-mail sender such as a Gmail address is
+      flagged, and its mail is likely to land in spam.
+      <figure><a href="img/brevo-3-senders.jpg"><img src="img/brevo-3-senders.jpg" width="800" height="537" alt="Brevo Senders page warning that a free-mail sender is not compliant with Google, Yahoo and Microsoft requirements" loading="lazy"></a>
+        <figcaption>A sender on a free-mail domain fails the DKIM/DMARC checks big mailbox providers now require.</figcaption></figure></li>
+  </ol>
+  <div class="table-wrap"><table>
+    <tr><th>Shop field</th><th>Brevo value</th></tr>
+    <tr><td>SMTP host</td><td><code>smtp-relay.brevo.com</code></td></tr>
+    <tr><td>Port / Security</td><td><code>587</code> / STARTTLS</td></tr>
+    <tr><td>Username</td><td>The <b>Login</b> on Brevo's SMTP page (<code>…@smtp-brevo.com</code>), not your own email</td></tr>
+    <tr><td>Password</td><td>The SMTP key</td></tr>
+    <tr><td>From address</td><td>A sender on your authenticated domain, e.g. <code>orders@yourshop.com</code></td></tr>
+  </table></div>
+
+  <h3 id="email-gmail">Option B: Gmail (app password)</h3>
+  <ol class="steps">
+    <li>Turn on <b>2-Step Verification</b> for the Google account at
+      <a href="https://myaccount.google.com/security">myaccount.google.com/security</a>. App passwords need it.</li>
+    <li>Open <a href="https://myaccount.google.com/apppasswords">myaccount.google.com/apppasswords</a>, type a name such as
+      <i>Reactive Shop</i>, and click <b>Create</b>.</li>
+    <li>Copy the 16-letter password Google shows (spaces don't matter). It's shown only once.</li>
+  </ol>
+  <div class="table-wrap"><table>
+    <tr><th>Shop field</th><th>Gmail value</th></tr>
+    <tr><td>SMTP host</td><td><code>smtp.gmail.com</code></td></tr>
+    <tr><td>Port / Security</td><td><code>587</code> / STARTTLS (or <code>465</code> / SSL)</td></tr>
+    <tr><td>Username</td><td>Your full Gmail address</td></tr>
+    <tr><td>Password</td><td>The 16-letter app password (not your Google password)</td></tr>
+    <tr><td>From address</td><td>The same Gmail address (Gmail rewrites any other)</td></tr>
+  </table></div>
+  <div class="note warn"><b>Fine for a small shop or trying things out.</b> Consumer Gmail accounts can send to about
+    500 recipients a day, and mail always comes from your Gmail address. For a growing shop, use Brevo or your domain's mailbox.</div>
+
+  <h3 id="email-host">Option C: your web host's mailbox (cPanel and similar)</h3>
+  <ol class="steps">
+    <li>In your hosting panel, create a mailbox such as <code>orders@yourshop.com</code> (cPanel: <b>Email Accounts → Create</b>).</li>
+    <li>Find its settings (cPanel: <b>Email Accounts → Connect Devices → Mail Client Manual Settings</b>). Use the
+      <b>outgoing server</b> values.</li>
+  </ol>
+  <div class="table-wrap"><table>
+    <tr><th>Shop field</th><th>Typical value</th></tr>
+    <tr><td>SMTP host</td><td><code>mail.yourshop.com</code> (or the server name the panel shows)</td></tr>
+    <tr><td>Port / Security</td><td><code>465</code> / SSL, or <code>587</code> / STARTTLS</td></tr>
+    <tr><td>Username</td><td>The full mailbox address</td></tr>
+    <tr><td>Password</td><td>The mailbox password</td></tr>
+    <tr><td>From address</td><td>The same mailbox address</td></tr>
+  </table></div>
+
+  <h3>Enter it in the shop</h3>
+  <p>Open <b>Integrations → Email (SMTP)</b>, fill in the fields from your option's table, <b>Save</b>, then click
+    <b>Test</b>: it sends a test email to the From address. Switch <b>Send emails</b> on.</p>
+  <figure><a href="img/app-6-email.jpg"><img src="img/app-6-email.jpg" width="692" height="580" alt="The shop's Email SMTP card: host, port, security, username, password, from address and from name" loading="lazy"></a>
+    <figcaption>The shop's Email card. <b>From name</b> can stay empty to use your shop's name.</figcaption></figure>
+</section>
+
+<!-- ============================================================ 6 Google -->
+<section class="card" id="google">
+  <div class="section-head"><span class="num">6</span><div><h2>Google sign-in (Firebase)</h2>
+    <p class="lead">Optional "Continue with Google" button and One Tap prompt. Email and password sign-in works without it.
+      <span class="pill">Free</span></p></div></div>
+
+  <p>You need four values from a Firebase project you own. All four are <b>public</b> by design (they're sent to
+    browsers); no private key or service-account file is needed.</p>
+  <ol class="steps">
+    <li><b>Create a project.</b> At <a href="https://console.firebase.google.com/">console.firebase.google.com</a> click
+      <b>Create a new Firebase project</b>, name it, and note the <b>project ID</b> shown under the name. Gemini and
+      Google Analytics can be switched off; the shop doesn't use them. Firebase requires 2-Step Verification on your
+      Google account.</li>
+    <li><b>Turn on Google sign-in.</b> <b>Authentication → Get started → Sign-in method → Google</b>, switch
+      <b>Enable</b> on, set the public-facing name (your shop's name) and support email, and <b>Save</b>. Open the
+      Google row again → <b>Web SDK configuration</b> and copy the <b>Web client ID</b> (ends in
+      <code>.apps.googleusercontent.com</code>).</li>
+    <li><b>Register a web app.</b> <b>Project settings (gear) → General → Your apps → Web (&lt;/&gt;)</b>, give it a
+      nickname and <b>Register app</b>. From the config it shows, copy <code>apiKey</code>, <code>authDomain</code> and
+      <code>projectId</code>; ignore the rest.</li>
+    <li><b>Allow your domain.</b> <b>Authentication → Settings → Authorized domains → Add domain</b>: your shop's domain
+      (<code>localhost</code> is already there). For One Tap, also add <code>https://yourshop.com</code> under
+      <b>Authorized JavaScript origins</b> of the <i>Web client (auto created by Google Service)</i> in
+      <a href="https://console.cloud.google.com/auth/clients">Google Cloud → Google Auth Platform → Clients</a>.
+      It can take a few minutes to a few hours to apply.</li>
+    <li><b>Enter them in the shop</b>: <b>Integrations → Google sign-in</b>, then Test and Save.
+      <figure><a href="img/app-5-google.jpg"><img src="img/app-5-google.jpg" width="692" height="580" alt="The shop's Google sign-in card: Firebase project ID, Web API key, auth domain and OAuth web client ID" loading="lazy"></a>
+        <figcaption>The shop's Google sign-in card. The Web client ID is only needed for One Tap.</figcaption></figure></li>
+  </ol>
+  <div class="table-wrap"><table>
+    <tr><th>Shop field</th><th>From Firebase</th></tr>
+    <tr><td>Firebase project ID</td><td><code>projectId</code> (Project settings → General)</td></tr>
+    <tr><td>Web API key</td><td><code>apiKey</code></td></tr>
+    <tr><td>Auth domain</td><td><code>authDomain</code>, usually <code>&lt;project-id&gt;.firebaseapp.com</code></td></tr>
+    <tr><td>OAuth web client ID</td><td>The <b>Web client ID</b> from Authentication → Sign-in method → Google</td></tr>
+  </table></div>
+</section>
+
+<!-- ============================================================ 7 Rates -->
+<section class="card" id="rates">
+  <div class="section-head"><span class="num">7</span><div><h2>Exchange rates</h2>
+    <p class="lead">Converts prices for shoppers who pick another currency. <span class="pill">No account needed</span></p></div></div>
+  <p>Works out of the box with the free <a href="https://www.exchangerate-api.com/docs/free">open.er-api.com</a> feed,
+    refreshed every 6 hours. You only need to change it to use a paid feed: it must return
+    <code>{"result":"success","rates":{…}}</code> per 1 USD.</p>
+</section>
+
+<!-- ============================================================ 8 Production -->
+<section class="card" id="production">
+  <div class="section-head"><span class="num">8</span><div><h2>Transfer to Production</h2>
+    <p class="lead">Complete walkthrough for moving from sandbox testing to a live, secure public store.</p></div></div>
+
+  <div class="note ok"><b>Zero-Downtime Environment Switcher:</b> Reactive Shop maintains separate <b>Sandbox</b> and <b>Production</b> credentials for every gateway inside <code>integration-settings.json</code>. You can configure and verify live keys in the background while running tests, and switch to live with a single click in <b>Admin → Integrations</b> without restarting the application. In-flight sandbox checkouts finish safely in sandbox, while all subsequent orders immediately use production gateways.</div>
+
+  <h3 id="prod-server">1. Server, domain and HTTPS reverse proxy</h3>
+  <p>Payment gateways (especially M-Pesa Express and Pesapal) require a public, trusted <b>HTTPS</b> callback endpoint. They will refuse connections to <code>localhost</code> or unencrypted HTTP.</p>
+  <ol class="steps">
+    <li><b>Assign a domain and public IP:</b> Point your domain's DNS A/AAAA records (e.g. <code>shop.example.com</code>) to your production server.</li>
+    <li><b>Set your public URL:</b> Set <code>SHOP_PUBLIC_URL=https://shop.example.com</code> (no trailing slash). All payment redirect URLs, callbacks, and order emails follow this setting.</li>
+    <li><b>Run behind a reverse proxy (Nginx or Caddy) with SSL:</b> Obtain a free SSL certificate with Let's Encrypt (Certbot) or Cloudflare SSL.</li>
+    <li><b>Forward client IP headers:</b> Set <code>SHOP_FORWARD_HEADERS=framework</code> so the built-in Netty rate limiters track real visitor IPs instead of grouping all traffic under your reverse proxy's IP.</li>
+  </ol>
+  <pre><code># Sample Nginx reverse proxy configuration:
+server {
+    listen 80;
+    server_name shop.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name shop.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/shop.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/shop.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Port $server_port;
+
+        # Keep server-sent event (SSE) live streams open
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+    }
+}</code></pre>
+
+  <h3 id="prod-database">2. Production database and backups</h3>
+  <p>In-memory H2 is intended only for development and sandbox demos; all data disappears when the application restarts. Production requires a durable, persistent database engine.</p>
+  <ul>
+    <li><b>Supported engines:</b> MariaDB 10.6+, MySQL 8.0+, PostgreSQL 14+, Microsoft SQL Server 2019+, or Oracle 19c+.</li>
+    <li><b>Initial install:</b> When launching on a clean database, the wizard at <code>/setup.html</code> automatically tests your connection, checks collation, and executes all Flyway migrations (tables, sequences, initial catalog, and settings).</li>
+    <li><b>Automated migrations:</b> Future application updates automatically migrate the schema forward without manual SQL scripts.</li>
+    <li><b>Backups:</b> Schedule regular automated backups of your database (e.g. daily cron with <code>mysqldump</code> or <code>pg_dump</code>).</li>
+  </ul>
+
+  <h3 id="prod-security">3. Safety checks and secrets hardening</h3>
+  <p>When started with <code>SHOP_PRODUCTION=true</code> (the default), the shop runs strict safety assertions (<code>ProductionSafetyCheck</code>) and will <b>refuse to boot</b> if dangerous development defaults are detected.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Security Setting</th><th>Production Requirement</th><th>Purpose</th></tr>
+    <tr><td><code>JWT_SECRET</code></td><td>Unique random string, at least 32 characters</td><td>Signs customer and admin authentication tokens. Replaces the known development key.</td></tr>
+    <tr><td><code>ADMIN_PASSWORD</code></td><td>At least 12 characters (not <code>admin123</code>)</td><td>Protects initial administrative access.</td></tr>
+    <tr><td><code>SHOP_SECRETS_KEY</code></td><td>Must be saved and backed up privately</td><td>AES encryption key that secures stored gateway credentials in <code>integration-settings.json</code>. Automatically generated into <code>shop-install.properties</code> on first install.</td></tr>
+    <tr><td><code>SHOP_CORS_ALLOWED_ORIGINS</code></td><td>Empty, or strictly your own domains</td><td>Blocks unauthorized third-party browsers from making authenticated API calls. Never set to <code>*</code> or <code>localhost</code> in production.</td></tr>
+  </table></div>
+  <div class="note warn"><b>Back up <code>shop-install.properties</code>:</b> This file holds your installation's secrets key. Keep an encrypted copy off-server. Without this key, stored payment secrets cannot be decrypted after moving to a new server.</div>
+
+  <h3 id="prod-gateways">4. Switching each gateway to live</h3>
+  <p>Open <b>Admin → Integrations</b> in your browser. For each service you plan to offer to real shoppers, perform the live configuration switch:</p>
+  <ol class="steps">
+    <li><b>PayPal</b>
+      <ul>
+        <li>In developer.paypal.com, flip the top toggle to <b>Live</b> and open <b>Apps &amp; Credentials</b>.</li>
+        <li>Create or select your live merchant app, and copy the live <b>Client ID</b> and <b>Secret</b>.</li>
+        <li>In shop Admin → Integrations → PayPal, select <b>Edit settings for: Production</b>.</li>
+        <li>Paste your live Client ID and Secret. Ensure your accepted currencies are configured.</li>
+        <li>Click <b>Save production</b>, then click <b>Test</b>.</li>
+        <li>Set <b>Environment in use</b> to <b>Production</b> and flip <b>Offered at checkout</b> to ON.</li>
+        <li><i>Tip:</i> In your PayPal Business account settings (Website Payments), ensure <b>PayPal Account Optional</b> is enabled so shoppers can pay directly with debit/credit cards without creating a PayPal account.</li>
+      </ul>
+    </li>
+    <li><b>M-Pesa Express (Safaricom Daraja)</b>
+      <ul>
+        <li>Log in to developer.safaricom.co.ke and open <b>Go Live</b>. Submit your live Paybill or Till Shortcode and authorized Business Administrator details.</li>
+        <li>Under <b>My Apps → Production Apps</b>, copy your production <b>Consumer Key</b> and <b>Consumer Secret</b>. Safaricom provides your production <b>Passkey</b> upon approval.</li>
+        <li>In shop Admin → Integrations → M-Pesa, switch to <b>Edit settings for: Production</b>.</li>
+        <li>Enter your production Consumer Key, Consumer Secret, Business Shortcode, and Passkey.</li>
+        <li>Verify the Callback URL is <code>https://shop.example.com/api/payment/callback</code>.</li>
+        <li>Click <b>Save production</b>, test, and flip <b>Environment in use</b> to <b>Production</b>.</li>
+      </ul>
+    </li>
+    <li><b>Pesapal</b>
+      <ul>
+        <li>Log in to your verified business account at pesapal.com.</li>
+        <li>Retrieve your live <b>Consumer Key</b> and <b>Consumer Secret</b> from the merchant dashboard.</li>
+        <li>In shop Admin → Integrations → Pesapal, select <b>Edit settings for: Production</b>.</li>
+        <li>Change the <b>API base URL</b> to the live endpoint: <code>https://pay.pesapal.com/v3</code>.</li>
+        <li>Paste the live credentials. Verify IPN URL is <code>https://shop.example.com/api/payments/pesapal/ipn</code>.</li>
+        <li>Click <b>Save production</b>, test, and flip <b>Environment in use</b> to <b>Production</b>.</li>
+      </ul>
+    </li>
+    <li><b>Transactional email (SMTP)</b>
+      <ul>
+        <li>Use a dedicated transactional provider (Brevo, Amazon SES, SendGrid, or your web host).</li>
+        <li>Ensure your domain DNS records include valid <b>SPF</b>, <b>DKIM</b>, and <b>DMARC</b> records matching your provider.</li>
+        <li>In shop Admin → Integrations → Email, enter the production SMTP server, port, credentials, and a verified From address (e.g. <code>orders@yourdomain.com</code>).</li>
+        <li>Click <b>Test</b> and confirm receipt in your personal inbox (check that it does not land in spam). Flip <b>Send emails</b> to ON.</li>
+      </ul>
+    </li>
+    <li><b>Google sign-in (Firebase)</b>
+      <ul>
+        <li>In Firebase Console → Authentication → Settings → Authorized domains, add <code>shop.example.com</code>.</li>
+        <li>In Google Cloud Console → APIs &amp; Services → Credentials → OAuth 2.0 Web Client, add <code>https://shop.example.com</code> under <b>Authorized JavaScript origins</b> for One Tap sign-in.</li>
+      </ul>
+    </li>
+  </ol>
+
+  <h3 id="prod-reset">5. Clearing test data: Restart store fresh</h3>
+  <p>During sandbox testing, test orders, fake transactions, and test carts were created, temporarily reducing inventory. Before welcoming real customers, purge this testing history:</p>
+  <ol class="steps">
+    <li>Log in as admin and navigate to <b>Admin → Overview</b>.</li>
+    <li>Click <b>Restart store fresh</b>.</li>
+    <li>Confirm the prompt.</li>
+  </ol>
+  <div class="note ok"><b>What gets cleaned:</b> All test orders and line items are purged; reserved catalog stock is automatically restored to full original inventory; all guest and customer carts are cleared; payment attempt logs are reset; and invoice/order sequence numbers restart clean. Your catalog products, categories, pricing, branding, and integration credentials remain completely intact.</div>
+
+  <h3 id="prod-smoke">6. Live smoke-testing and refund</h3>
+  <p>Never declare a shop ready without verifying a real end-to-end payment with real currency:</p>
+  <ol class="steps">
+    <li>Temporarily create a private test product priced at the minimum allowable amount (e.g. $1.00 USD or 10 KES), or add a low-cost item to cart.</li>
+    <li>Complete checkout as a customer using your real card or mobile phone.</li>
+    <li>Verify that the gateway immediately authorizes the charge, redirects back to your order confirmation, and transitions the order status from <code>PENDING</code> to <code>PAID</code>.</li>
+    <li>Confirm that an automated order confirmation email arrives in your inbox.</li>
+    <li>Sign into your merchant dashboard (PayPal, Pesapal, or M-Pesa portal) and issue a full refund for the test order. Confirm the refund status in the provider console.</li>
+  </ol>
+
+  <h3 id="prod-service">7. Running as a continuous service (Systemd)</h3>
+  <p>On Linux servers (Ubuntu, Debian, RHEL), configure Systemd so the application starts on boot and restarts automatically if terminated:</p>
+  <pre><code># /etc/systemd/system/reactive-shop.service
+[Unit]
+Description=Reactive Shop E-Commerce Engine
+After=network.target
+
+[Service]
+Type=simple
+User=shop
+WorkingDirectory=/var/www/reactive-shop
+ExecStart=/usr/bin/java -Xms512m -Xmx2g -jar reactive-shop.jar
+Restart=always
+RestartSec=10
+EnvironmentFile=/var/www/reactive-shop/.env
+
+# Security sandbox
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+  <p>Reload and enable: <code>sudo systemctl daemon-reload &amp;&amp; sudo systemctl enable --now reactive-shop</code>.</p>
+
+  <h3 id="prod-checklist">8. Pre-launch go-live checklist</h3>
+  <ul class="check">
+    <li>Public domain configured with valid SSL/HTTPS certificate.</li>
+    <li><code>SHOP_PUBLIC_URL=https://yourdomain.com</code> configured and verified.</li>
+    <li>Production database (MariaDB / MySQL / PostgreSQL / SQL Server / Oracle) active with automated backups.</li>
+    <li><code>JWT_SECRET</code> set to a strong 32+ character random secret.</li>
+    <li>Admin password is strong (12+ characters); initial test admin passwords rotated.</li>
+    <li><code>shop-install.properties</code> safely backed up off-server.</li>
+    <li>Each offered gateway tested in production mode and flipped to <b>Production</b> in Integrations.</li>
+    <li>Transactional email verified with DKIM/SPF DNS records and test email delivered to inbox.</li>
+    <li>Production domain added to Firebase Authorized Domains and OAuth JavaScript origins.</li>
+    <li>Test orders and carts cleared via <b>Admin → Overview → Restart store fresh</b>.</li>
+    <li>Live real-money smoke test verified and refunded.</li>
+    <li>Systemd service or Docker daemon configured with auto-restart on boot.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ 9 Env -->
+<section class="card" id="env">
+  <div class="section-head"><span class="num">9</span><div><h2>Environment variables</h2>
+    <p class="lead">For automated deployments (Docker, a hosting panel). They set the starting values; anything saved
+      in Admin → Integrations takes over from them. <b>Integrations → Download</b> exports your settings in this form.</p></div></div>
+  <div class="table-wrap"><table>
+    <tr><th>Service</th><th>Variables</th></tr>
+    <tr><td>Shop address</td><td><code>SHOP_PUBLIC_URL</code></td></tr>
+    <tr><td>PayPal</td><td><code>PAYPAL_ENVIRONMENT</code> (sandbox / live), <code>PAYPAL_CLIENT_ID</code>, <code>PAYPAL_CLIENT_SECRET</code>, <code>PAYPAL_SUPPORTED_CURRENCIES</code>, <code>PAYPAL_BRAND_NAME</code>, <code>PAYPAL_ENABLED</code></td></tr>
+    <tr><td>M-Pesa</td><td><code>DARAJA_ENV</code> (sandbox / production), <code>DARAJA_CONSUMER_KEY</code>, <code>DARAJA_CONSUMER_SECRET</code>, <code>DARAJA_SHORTCODE</code>, <code>DARAJA_PASSKEY</code>, <code>DARAJA_CALLBACK_URL</code></td></tr>
+    <tr><td>Pesapal</td><td><code>PESAPAL_BASE_URL</code>, <code>PESAPAL_CONSUMER_KEY</code>, <code>PESAPAL_CONSUMER_SECRET</code>, <code>PESAPAL_SUPPORTED_CURRENCIES</code></td></tr>
+    <tr><td>Email</td><td><code>SHOP_MAIL_HOST</code>, <code>SHOP_MAIL_PORT</code>, <code>SHOP_MAIL_SECURITY</code> (STARTTLS / SSL / NONE), <code>SHOP_MAIL_USERNAME</code>, <code>SHOP_MAIL_PASSWORD</code>, <code>SHOP_MAIL_FROM</code>, <code>SHOP_MAIL_FROM_NAME</code></td></tr>
+    <tr><td>Google sign-in</td><td><code>FIREBASE_PROJECT_ID</code>, <code>FIREBASE_API_KEY</code>, <code>FIREBASE_AUTH_DOMAIN</code>, <code>FIREBASE_OAUTH_CLIENT_ID</code></td></tr>
+    <tr><td>Exchange rates</td><td><code>EXCHANGE_RATES_URL</code>, <code>EXCHANGE_RATES_REFRESH_HOURS</code></td></tr>
+    <tr><td>Saved-secret encryption</td><td><code>SHOP_SECRETS_KEY</code> (otherwise generated into <code>shop-install.properties</code>)</td></tr>
+  </table></div>
+</section>
+
+<!-- ============================================================ 10 Trouble -->
+<section class="card" id="trouble">
+  <div class="section-head"><span class="num">10</span><div><h2>Troubleshooting</h2></div></div>
+  <div class="table-wrap"><table>
+    <tr><th>What you see</th><th>Likely cause and fix</th></tr>
+    <tr><td>A payment method doesn't appear at checkout</td><td>Its card isn't complete, or <b>Offered at checkout</b> is off. The card lists what's missing.</td></tr>
+    <tr><td>PayPal: "Client Authentication failed"</td><td>Sandbox keys used with Production (or the reverse), or a copy-paste slip. Check which tab you edited and which environment is in use.</td></tr>
+    <tr><td>M-Pesa prompt arrives but the order stays pending</td><td>The callback URL isn't public HTTPS, so Safaricom can't deliver the result. Fix <code>SHOP_PUBLIC_URL</code> or use a tunnel.</td></tr>
+    <tr><td>M-Pesa: "Invalid Access Token" / 401</td><td>Consumer key or secret wrong, or from an app without the Lipa Na M-Pesa product.</td></tr>
+    <tr><td>Pesapal payments stay pending</td><td>Pesapal can't reach the IPN URL. It must be your public https address.</td></tr>
+    <tr><td>Email test fails with "Authentication failed"</td><td>Brevo: the username must be the <code>…@smtp-brevo.com</code> login. Gmail: use an app password, not your Google password.</td></tr>
+    <tr><td>Emails land in spam</td><td>The From address's domain isn't authenticated (DKIM / DMARC). Use your own domain and add the records your provider gives you.</td></tr>
+    <tr><td>Google: <code>auth/unauthorized-domain</code></td><td>Add your domain under Firebase <b>Authentication → Settings → Authorized domains</b>.</td></tr>
+    <tr><td>One Tap: "origin is not allowed"</td><td>Add your https origin to the Google client's Authorized JavaScript origins, then wait for it to apply.</td></tr>
+  </table></div>
+</section>
+
+<footer>Reactive Shop · Screenshots taken in October 2026; provider screens change from time to time, but the names of
+  the settings stay the same. In the screenshots, keys, secrets and account names are masked.</footer>
+</main>
+</div>
+<script>
+(function() {
+  const links = Array.from(document.querySelectorAll('nav.toc a[href^="#"]'));
+  const targets = links.map(link => {
+    const id = link.getAttribute('href').slice(1);
+    return { link, elem: document.getElementById(id) };
+  }).filter(item => item.elem !== null);
+
+  links.forEach(link => {
+    link.addEventListener('click', function(e) {
+      const targetId = this.getAttribute('href').slice(1);
+      const targetElem = document.getElementById(targetId);
+      if (targetElem) {
+        e.preventDefault();
+        targetElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.pushState(null, '', '#' + targetId);
+      }
+    });
+  });
+
+  function updateActiveLink() {
+    const scrollPos = window.scrollY + 120;
+    let current = null;
+    for (const item of targets) {
+      const top = item.elem.getBoundingClientRect().top + window.scrollY;
+      if (top <= scrollPos) {
+        current = item;
+      }
+    }
+    targets.forEach(item => item.link.classList.remove('active'));
+    if (current) {
+      current.link.classList.add('active');
+    }
+  }
+
+  window.addEventListener('scroll', updateActiveLink, { passive: true });
+  window.addEventListener('resize', updateActiveLink, { passive: true });
+  updateActiveLink();
+})();
+</script>
+</body>
+</html>

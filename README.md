@@ -17,6 +17,10 @@ Welcome to the documentation and integration setup guide for the **Reactive Demo
   - **Google OAuth 2.0**: Cloud Console project, OAuth Consent Screen, Authorized Redirect URIs, Client ID & Secret.
   - **Transactional Email (Brevo SMTP)**: SMTP settings, master key generation, verified sender identities, template testing.
 
+- **[Installation, Updating & FAQ](https://josemodi97.github.io/reactive-demo-docs/install-guide/)**
+  - Docker, the ready-built jar or building from source; every supported database; the setup wizard;
+    the files the shop keeps; updating to a new version (backups, Flyway); frequently asked questions.
+
 - **[Production Transfer & Go-Live Guide](PRODUCTION_TRANSFER.md)**
   - Detailed server hardening, SSL/HTTPS reverse proxy (Nginx / Caddy), firewall configuration, environment secrets management (`SHOP_SECRETS_KEY`), webhook verification, and monitoring checklist.
 

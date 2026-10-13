@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installing and updating — Reactive Shop</title>
+<style>
+  :root {
+    --bg: #f8f9fc; --surface: #ffffff; --ink: #0f172a; --body: #334155; --muted: #64748b; --line: #e2e8f0;
+    --brand: #00aa77; --brand-ink: #00825a; --brand-tint: #e6f7f2;
+    --warn-bg: #fff7e6; --warn-ink: #8a5300; --warn-line: #f5d38f;
+    --info-bg: #eef4ff; --info-ink: #1e4fb8; --info-line: #c7d8fb;
+    --danger-bg: #fdecec; --danger-ink: #a61b1b; --danger-line: #f4b9b9;
+    --code-bg: #f1f5f9; --radius: 12px; --shadow: 0 1px 2px rgba(15,23,42,.06), 0 8px 24px -12px rgba(15,23,42,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1120; --surface: #111a2e; --ink: #e8eef9; --body: #c3cde0; --muted: #8b98b2; --line: #22304d;
+      --brand: #21c48f; --brand-ink: #4fd8a8; --brand-tint: #0f2e26;
+      --warn-bg: #2b2210; --warn-ink: #f2c46b; --warn-line: #5a4519;
+      --info-bg: #10203f; --info-ink: #93b6f7; --info-line: #24406f;
+      --danger-bg: #351317; --danger-ink: #f3a3a3; --danger-line: #5c2229;
+      --code-bg: #17233b; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  [id] { scroll-margin-top: 24px; }
+  .toc li a.active { background: var(--brand-tint); color: var(--brand-ink); font-weight: 700; }
+  body { margin: 0; background: var(--bg); color: var(--body); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  a { color: var(--brand-ink); }
+  code, kbd { font: .875em/1.4 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; background: var(--code-bg); padding: .1em .35em; border-radius: 6px; color: var(--ink); overflow-wrap: anywhere; }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 10px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  h1, h2, h3 { color: var(--ink); line-height: 1.25; letter-spacing: -.01em; }
+  h1 { font-size: clamp(1.75rem, 3vw, 2.4rem); margin: 0 0 .5rem; }
+  h2 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h3 { font-size: 1.15rem; margin: 1.75rem 0 .5rem; }
+  .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 40px; max-width: 1240px; margin: 0 auto; padding: 32px 24px 80px; }
+  nav.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; font-size: .92rem; }
+  .toc .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ink); margin-bottom: 18px; }
+  .toc .mark { width: 34px; height: 34px; border-radius: 10px; background: var(--brand); color: #fff; display: grid; place-items: center; font-size: 18px; }
+  .toc ol { list-style: none; margin: 0; padding: 0; }
+  .toc li a { display: block; padding: 6px 10px; border-radius: 8px; color: var(--body); text-decoration: none; }
+  .toc li a:hover { background: var(--brand-tint); color: var(--brand-ink); }
+  .toc .sub a { padding-left: 24px; font-size: .86rem; color: var(--muted); }
+  main { min-width: 0; }
+  .hero { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 32px; box-shadow: var(--shadow); margin-bottom: 28px; }
+  .hero p { font-size: 1.07rem; max-width: 62ch; margin: .25rem 0 0; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; font-weight: 700; color: var(--brand-ink); }
+  section.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 28px 32px; margin: 0 0 28px; box-shadow: var(--shadow); }
+  .section-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 8px; }
+  .section-head .num { flex: none; width: 40px; height: 40px; border-radius: 12px; background: var(--brand-tint); color: var(--brand-ink); display: grid; place-items: center; font-weight: 800; }
+  .lead { color: var(--muted); margin: 0; }
+  .pill { display: inline-block; font-size: .75rem; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: var(--brand-tint); color: var(--brand-ink); margin-right: 6px; vertical-align: middle; }
+  .pill.grey { background: var(--code-bg); color: var(--muted); }
+  ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 12px 0; }
+  ol.steps > li { counter-increment: step; position: relative; padding: 2px 0 12px 44px; }
+  ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--brand); color: #fff; font-weight: 700; font-size: .85rem; display: grid; place-items: center; }
+  ol.steps > li::after { content: ''; position: absolute; left: 13.5px; top: 32px; bottom: 2px; width: 1px; background: var(--line); }
+  ol.steps > li:last-child::after { display: none; }
+  figure { margin: 14px 0 22px; }
+  figure a { display: block; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: #fff; }
+  figure img { display: block; width: 100%; height: auto; }
+  figcaption { font-size: .86rem; color: var(--muted); margin-top: 8px; }
+  .note { border: 1px solid var(--info-line); background: var(--info-bg); color: var(--info-ink); border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .note.warn { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn-ink); }
+  .note.danger { border-color: var(--danger-line); background: var(--danger-bg); color: var(--danger-ink); }
+  .note.ok { border-color: color-mix(in srgb, var(--brand) 35%, transparent); background: var(--brand-tint); color: var(--brand-ink); }
+  .note b:first-child { display: block; margin-bottom: 2px; }
+  .note code { background: rgba(127,127,127,.12); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: .93rem; }
+  .table-wrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; background: var(--code-bg); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 16px 0; }
+  .tile { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: var(--bg); }
+  .tile h4 { margin: 0 0 4px; color: var(--ink); font-size: 1rem; }
+  .tile p { margin: 0; font-size: .9rem; color: var(--muted); }
+  a.tile { display: block; text-decoration: none; color: inherit; transition: border-color .15s, box-shadow .15s; }
+  a.tile:hover { border-color: var(--brand); box-shadow: var(--shadow); }
+  .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 16px 0 8px; }
+  .choice { border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: var(--bg); }
+  .choice h4 { margin: 0 0 6px; color: var(--ink); }
+  .choice p, .choice ul { margin: 0; font-size: .9rem; }
+  .choice ul { padding-left: 18px; margin-top: 6px; }
+  .check { list-style: none; padding: 0; }
+  .check li { padding-left: 30px; position: relative; margin: 8px 0; }
+  .check li::before { content: '✓'; position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 6px; background: var(--brand-tint); color: var(--brand-ink); font-weight: 800; font-size: .8rem; display: grid; place-items: center; }
+  footer { color: var(--muted); font-size: .85rem; text-align: center; margin-top: 40px; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; gap: 16px; padding: 16px; }
+    nav.toc { position: static; max-height: none; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+    .toc .sub { display: none; }
+    section.card, .hero { padding: 20px 18px; border-radius: 14px; }
+  }
+  @media print {
+    nav.toc { display: none; }
+    .layout { display: block; }
+    section.card, .hero { box-shadow: none; break-inside: avoid-page; }
+    figure a { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" aria-label="Contents">
+  <div class="brand"><span class="mark">⚡</span>Reactive Shop install</div>
+  <ol>
+    <li><a href="#requirements">1. What you need</a></li>
+    <li class="sub"><a href="#download">What's in the download</a></li>
+    <li><a href="#choose">2. Choose how to run it</a></li>
+    <li><a href="#docker">3. Install with Docker</a></li>
+    <li><a href="#jar">4. Install with the jar</a></li>
+    <li class="sub"><a href="#jar-service">Keep it running</a></li>
+    <li><a href="#source">5. Build from source</a></li>
+    <li><a href="#databases">6. Databases</a></li>
+    <li class="sub"><a href="#db-prepare">Prepare a database user</a></li>
+    <li class="sub"><a href="#db-engines">Engine by engine</a></li>
+    <li class="sub"><a href="#db-urls">Skipping the wizard's database step</a></li>
+    <li><a href="#wizard">7. The setup wizard</a></li>
+    <li><a href="#files">8. Files the shop keeps</a></li>
+    <li><a href="#update">9. Updating to a new version</a></li>
+    <li class="sub"><a href="#update-backup">Back up first</a></li>
+    <li class="sub"><a href="#update-docker">Docker</a></li>
+    <li class="sub"><a href="#update-jar">Jar</a></li>
+    <li class="sub"><a href="#update-source">From source</a></li>
+    <li class="sub"><a href="#update-rollback">If something goes wrong</a></li>
+    <li><a href="#faq">10. FAQ</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="hero">
+  <div class="eyebrow">Installation guide</div>
+  <h1>Installing, updating and running Reactive Shop</h1>
+  <p>How to get the shop running on your server with Docker, the ready-built jar or from source, how to connect
+    each supported database, how to update to a new version without losing anything, and answers to common questions.</p>
+  <div class="grid">
+    <a class="tile" href="#docker"><h4>Docker</h4><p>The shop and a MariaDB database in two commands.</p></a>
+    <a class="tile" href="#jar"><h4>Ready-built jar</h4><p>Java 21 and a database you already run.</p></a>
+    <a class="tile" href="#update"><h4>Updating</h4><p>Back up, replace, start. The database is upgraded for you.</p></a>
+    <a class="tile" href="#faq"><h4>FAQ</h4><p>Setup token, safety checks, lost passwords, domains.</p></a>
+  </div>
+  <div class="note"><b>Other guides in this folder.</b> Once the shop runs, connect payments, email and Google sign-in with
+    the <a href="../index.html">setup guide</a>, and read <a href="../PRODUCTION_TRANSFER.md">PRODUCTION_TRANSFER.md</a>
+    before opening the shop to real customers.</div>
+</header>
+
+<!-- ============================================================ 1 -->
+<section class="card" id="requirements">
+  <div class="section-head"><span class="num">1</span><div><h2>What you need</h2>
+    <p class="lead">A server that can run a Java program, and a database.</p></div></div>
+  <ul>
+    <li><b>A server you can run programs on</b>: a VPS or dedicated server (Linux, Windows or macOS), a Docker host, or a
+      platform that runs Docker images or Java. Ordinary shared PHP hosting can't run it: the shop is a Java program that
+      keeps running and listens on its own port.</li>
+    <li><b>Java 21</b> (for example Eclipse Temurin 21), unless you use Docker, which brings its own.</li>
+    <li><b>A database</b>: MariaDB, MySQL, PostgreSQL, Microsoft SQL Server or Oracle Database. The Docker setup includes
+      MariaDB. H2 (built in, in memory) is there for trying the shop out only.</li>
+    <li><b>Internet access during setup</b>, to activate your purchase code. After activation the shop never needs the
+      license server again.</li>
+    <li>For a public shop: <b>a domain and HTTPS</b>, usually through a reverse proxy such as Nginx or Caddy (see
+      <a href="../PRODUCTION_TRANSFER.md">PRODUCTION_TRANSFER.md</a>). Payment providers only call back to public https addresses.</li>
+  </ul>
+
+  <h3 id="download">What's in the download</h3>
+  <div class="table-wrap"><table>
+    <tr><th>File or folder</th><th>What it is</th></tr>
+    <tr><td><code>reactive-shop.jar</code></td><td>The ready-built shop. Run it with <code>java -jar reactive-shop.jar</code>.</td></tr>
+    <tr><td><code>Dockerfile</code>, <code>docker-compose.yml</code>, <code>.env.example</code></td><td>Everything for the Docker install.</td></tr>
+    <tr><td><code>src/</code>, <code>pom.xml</code>, <code>mvnw</code>, <code>mvnw.cmd</code></td><td>The full source code and the Maven wrapper to build it.</td></tr>
+    <tr><td><code>docs/</code></td><td>This guide, the <a href="../index.html">setup guide</a> for payments, email and sign-in, and the production checklist.</td></tr>
+    <tr><td><code>README.md</code>, <code>USER_GUIDE.md</code></td><td>Developer notes, and a tour of the shop for the people who run it.</td></tr>
+    <tr><td><code>THIRD-PARTY-NOTICES.md</code></td><td>Licences of the bundled libraries, fonts and drivers.</td></tr>
+  </table></div>
+</section>
+
+<!-- ============================================================ 2 -->
+<section class="card" id="choose">
+  <div class="section-head"><span class="num">2</span><div><h2>Choose how to run it</h2>
+    <p class="lead">All three end at the same setup wizard in your browser.</p></div></div>
+  <div class="choices">
+    <div class="choice"><h4>Docker <span class="pill">Easiest</span></h4><p>The shop plus its own MariaDB.</p>
+      <ul><li>Needs Docker with Compose</li><li>No Java or database to install</li><li>Data kept in Docker volumes</li></ul></div>
+    <div class="choice"><h4>Ready-built jar</h4><p><code>reactive-shop.jar</code> from the download.</p>
+      <ul><li>Needs Java 21</li><li>Use a database you already run, any supported engine</li><li>Run it as a service (systemd, Windows service)</li></ul></div>
+    <div class="choice"><h4>From source</h4><p>Build the jar yourself.</p>
+      <ul><li>Needs Java 21 (Maven comes with the wrapper)</li><li>For changing the code</li><li>Produces the same jar</li></ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 3 -->
+<section class="card" id="docker">
+  <div class="section-head"><span class="num">3</span><div><h2>Install with Docker</h2>
+    <p class="lead">Starts the shop and a MariaDB 11.4 database next to it.</p></div></div>
+  <ol class="steps">
+    <li>Unzip the download and open a terminal in its folder (the one with <code>docker-compose.yml</code>).</li>
+    <li>Create your settings file from the example:
+      <pre><code>cp .env.example .env</code></pre>
+      Open <code>.env</code> and set <code>DB_PASSWORD</code> and <code>DB_ROOT_PASSWORD</code> to two long random passwords.
+      Set <code>SHOP_PUBLIC_URL</code> to the address shoppers will use (e.g. <code>https://shop.example.com</code>, no
+      trailing slash), and <code>SHOP_PORT</code> if port 8080 is taken.</li>
+    <li>Build and start:
+      <pre><code>docker compose up -d --build</code></pre>
+      The first build downloads Maven and the libraries and takes a few minutes.</li>
+    <li>Find the setup token in the log (look for <code>needs setting up</code>):
+      <pre><code>docker compose logs app</code></pre></li>
+    <li>Open <code>http://localhost:8080</code> (or your server's address) and follow the <a href="#wizard">setup wizard</a>.
+      The database step is skipped: the shop is already connected to its MariaDB.</li>
+  </ol>
+  <div class="note"><b>Where the data lives.</b> The database is in the <code>db-data</code> volume. Everything the shop
+    writes itself (generated secrets, saved integrations, storefront settings, uploaded images) is in the
+    <code>app-data</code> volume, mounted at <code>/app/data</code>. Keep both when you update; back both up.</div>
+  <div class="note warn"><b>Behind a reverse proxy?</b> Set <code>SHOP_FORWARD_HEADERS=framework</code> in <code>.env</code>
+    only when the shop's port is reachable through the proxy alone, so visitors can't forge their IP address.</div>
+</section>
+
+<!-- ============================================================ 4 -->
+<section class="card" id="jar">
+  <div class="section-head"><span class="num">4</span><div><h2>Install with the jar</h2>
+    <p class="lead">For a server with Java 21 and a database you manage yourself.</p></div></div>
+  <ol class="steps">
+    <li>Check Java: <code>java -version</code> must say 21 or later.</li>
+    <li>Make a folder for the shop, for example <code>/opt/reactive-shop</code>, and copy <code>reactive-shop.jar</code>
+      into it. The shop keeps its own files <a href="#files">in the folder it's started from</a>, so always start it from this folder.</li>
+    <li>Optionally <a href="#db-prepare">create an empty database and a user</a> for the shop. You can also let the wizard
+      create the database.</li>
+    <li>Start it:
+      <pre><code>cd /opt/reactive-shop
+java -jar reactive-shop.jar</code></pre>
+      The log prints the setup token (look for <code>needs setting up</code>).</li>
+    <li>Open <code>http://your-server:8080</code>. If no database is reachable, the wizard asks for one; see
+      <a href="#db-engines">Engine by engine</a>. To connect it up front instead, <a href="#db-urls">set two URLs</a>
+      before starting.</li>
+  </ol>
+  <h3 id="jar-service">Keep it running</h3>
+  <p>Run the shop as a service so it starts on boot and restarts after a crash. A complete systemd unit file (Linux) is in
+    <a href="../PRODUCTION_TRANSFER.md">PRODUCTION_TRANSFER.md</a>, section 8; put your environment variables in the
+    <code>.env</code> file it reads, and set <code>WorkingDirectory</code> to the shop's folder. On Windows, any service
+    wrapper that runs <code>java -jar reactive-shop.jar</code> in the shop's folder works (for example WinSW or NSSM).</p>
+</section>
+
+<!-- ============================================================ 5 -->
+<section class="card" id="source">
+  <div class="section-head"><span class="num">5</span><div><h2>Build from source</h2>
+    <p class="lead">Only needed if you change the code. Java 21 is all you install.</p></div></div>
+  <pre><code># Linux / macOS
+./mvnw clean package -DskipTests
+# Windows
+mvnw.cmd clean package -DskipTests</code></pre>
+  <p>The wrapper downloads Maven on first use. The jar is written to <code>target/reactive-shop-&lt;version&gt;.jar</code>;
+    copy it to your shop folder and run it as in <a href="#jar">section 4</a>. Always build with <code>clean</code>: an
+    old <code>target/</code> folder can hold files from the previous version (see the <a href="#faq-migration">FAQ</a>).</p>
+  <div class="note"><b>Running the tests?</b> Two of them start the shop against the database it's configured for and
+    clear all orders. Point them at a throwaway database, never at a shop with real orders.</div>
+</section>
+
+<!-- ============================================================ 6 -->
+<section class="card" id="databases">
+  <div class="section-head"><span class="num">6</span><div><h2>Databases</h2>
+    <p class="lead">The shop creates all its tables and a demo catalog itself, on any supported engine.</p></div></div>
+  <p>Supported: <b>MariaDB</b>, <b>MySQL</b>, <b>PostgreSQL</b>, <b>Microsoft SQL Server</b> and <b>Oracle Database</b>,
+    plus <b>H2</b> in memory for trying the shop out. No minimum version is enforced; use a version its vendor still
+    supports. MariaDB and PostgreSQL are the engines used most in development, so if you have a free choice, pick one of
+    those. You can move the shop to another engine later under <b>Admin → Database</b>, which copies all the data across.</p>
+
+  <h3 id="db-prepare">Prepare a database user</h3>
+  <p>Give the shop its own user rather than <code>root</code> or <code>postgres</code>. Replace the password with a long random one.</p>
+  <p><b>MariaDB / MySQL</b></p>
+  <pre><code>CREATE DATABASE reactive_shop CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'shop'@'localhost' IDENTIFIED BY 'change-me';
+GRANT ALL PRIVILEGES ON reactive_shop.* TO 'shop'@'localhost';</code></pre>
+  <p><b>PostgreSQL</b></p>
+  <pre><code>CREATE USER shop WITH PASSWORD 'change-me';
+CREATE DATABASE reactive_shop OWNER shop;</code></pre>
+  <p>If the database doesn't exist yet, the wizard creates it, but then the user needs the right to create databases.</p>
+
+  <h3 id="db-engines">Engine by engine</h3>
+  <p>What the wizard's database step asks for:</p>
+  <div class="table-wrap"><table>
+    <tr><th>Engine</th><th>What to enter</th><th>Notes</th></tr>
+    <tr><td>MariaDB / MySQL</td><td>host, port 3306, database name, user</td><td>The database is created if missing (the user needs <code>CREATE</code> rights). MySQL is reached through the bundled MariaDB driver.</td></tr>
+    <tr><td>PostgreSQL</td><td>host, port 5432, database name, optional schema, user</td><td>Database and schema are created if missing; an empty schema means <code>public</code>.</td></tr>
+    <tr><td>SQL Server</td><td>host, port 1433, database name, user (a SQL Server login)</td><td>The database is created if missing. TCP/IP must be enabled on the server.</td></tr>
+    <tr><td>Oracle</td><td>host, port 1521, <b>service name</b> (e.g. <code>FREEPDB1</code>), user</td><td>The service must exist. The tables go into the signing-in user's own schema, so give the shop a user of its own.</td></tr>
+    <tr><td>H2</td><td>a name</td><td>In memory, inside the shop: <b>everything is lost when it stops</b>, admin account included. For trying the shop out only.</td></tr>
+  </table></div>
+  <div class="note warn"><b>Try SQL Server and Oracle on a copy first.</b> They are supported, but have had far less use than
+    MariaDB and PostgreSQL. Test your setup on a staging copy before taking orders on them.</div>
+
+  <h3 id="db-urls">Skipping the wizard's database step</h3>
+  <p>Set two connection URLs before the first start: the R2DBC one the shop uses, and the JDBC one for the
+    database upgrades (Flyway). Use the same database, user and password in both.</p>
+  <pre><code># MariaDB or MySQL
+SPRING_R2DBC_URL=r2dbc:mysql://localhost:3306/reactive_shop
+SPRING_FLYWAY_URL=jdbc:mariadb://localhost:3306/reactive_shop
+
+# PostgreSQL (add ?currentSchema=shop to both to use another schema)
+SPRING_R2DBC_URL=r2dbc:postgresql://localhost:5432/reactive_shop
+SPRING_FLYWAY_URL=jdbc:postgresql://localhost:5432/reactive_shop
+
+# SQL Server
+SPRING_R2DBC_URL=r2dbc:mssql://localhost:1433/reactive_shop
+SPRING_FLYWAY_URL=jdbc:sqlserver://localhost:1433;databaseName=reactive_shop;encrypt=false
+
+# Oracle
+SPRING_R2DBC_URL=r2dbc:oracle://localhost:1521/FREEPDB1
+SPRING_FLYWAY_URL=jdbc:oracle:thin:@//localhost:1521/FREEPDB1
+
+# And for any engine:
+SPRING_R2DBC_USERNAME=shop
+SPRING_R2DBC_PASSWORD=change-me
+SPRING_FLYWAY_USER=shop
+SPRING_FLYWAY_PASSWORD=change-me</code></pre>
+  <p>For MySQL, the JDBC URL starts with <code>jdbc:mariadb://</code> too: the shop ships the MariaDB driver for both.</p>
+</section>
+
+<!-- ============================================================ 7 -->
+<section class="card" id="wizard">
+  <div class="section-head"><span class="num">7</span><div><h2>The setup wizard</h2>
+    <p class="lead">Opens by itself on a new shop, at <code>/setup.html</code>. Until it's finished, every page leads there.</p></div></div>
+  <ol class="steps">
+    <li><b>Setup token.</b> Proves you own the server. It's printed in the log when the shop starts (look for
+      <code>needs setting up</code>), or set your own with <code>SHOP_SETUP_TOKEN</code>.</li>
+    <li><b>License.</b> Your CodeCanyon purchase code (<b>Downloads → Reactive Shop → License certificate &amp; purchase
+      code</b>) and the domain the shop will run on. One code covers one live domain; <code>localhost</code>, private IP
+      addresses, <code>*.test</code>, <code>*.local</code>, <code>*.localhost</code> and <code>staging.</code>, <code>stage.</code>,
+      <code>dev.</code> or <code>test.</code> subdomains are always free, so you can keep a test copy.</li>
+    <li><b>Database</b>, only if the shop couldn't reach one: see <a href="#db-engines">Engine by engine</a>. The shop
+      creates the tables and the demo catalog.</li>
+    <li><b>Shop name and admin account.</b> Your name, email and a password of at least 12 characters. You're signed in
+      as the admin at the end.</li>
+  </ol>
+  <p>Once finished, the wizard is gone for good. Next, connect payments and email with the
+    <a href="../index.html">setup guide</a>, and replace the demo products under <b>Admin → Products</b>.</p>
+  <div class="note"><b>Automated deployments</b> can create the first admin without the wizard: set both
+    <code>ADMIN_EMAIL</code> and <code>ADMIN_PASSWORD</code> (12+ characters) before starting.</div>
+</section>
+
+<!-- ============================================================ 8 -->
+<section class="card" id="files">
+  <div class="section-head"><span class="num">8</span><div><h2>Files the shop keeps</h2>
+    <p class="lead">Written next to the shop, in the folder it's started from (<code>/app/data</code> in Docker).</p></div></div>
+  <div class="table-wrap"><table>
+    <tr><th>File</th><th>What's in it</th><th>Lose it and…</th></tr>
+    <tr><td><code>shop-install.properties</code></td><td>Generated secrets (JWT signing key, the key that encrypts saved credentials), the license, "setup finished"</td><td>Everyone is signed out, saved payment and email credentials can't be read, and the license must be activated again. <b>Back it up and keep it private.</b></td></tr>
+    <tr><td><code>active-database.properties</code></td><td>The database chosen in the wizard or under Admin → Database</td><td>The shop starts on the default database from its configuration instead.</td></tr>
+    <tr><td><code>integration-settings.json</code></td><td>Settings saved under Admin → Integrations (secrets encrypted)</td><td>Payment, email and sign-in settings have to be entered again.</td></tr>
+    <tr><td><code>storefront-settings.json</code></td><td>Storefront layout and content from Admin → Storefront</td><td>The storefront goes back to its defaults.</td></tr>
+    <tr><td><code>uploads/</code></td><td>Product images you uploaded</td><td>Those images are gone.</td></tr>
+  </table></div>
+  <p>Start the shop from a different folder and it won't find these files: it behaves like a new install.</p>
+</section>
+
+<!-- ============================================================ 9 -->
+<section class="card" id="update">
+  <div class="section-head"><span class="num">9</span><div><h2>Updating to a new version</h2>
+    <p class="lead">Back up, replace the program, start it. The database is upgraded automatically on start.</p></div></div>
+  <p>Each version carries the database changes it needs (Flyway migrations). When the new version starts, it applies the
+    ones your database doesn't have yet, in order, and records them in the <code>flyway_schema_history</code> table. You
+    never run SQL scripts by hand, and your products, orders, customers and settings stay. You don't need to activate
+    your license again.</p>
+
+  <h3 id="update-backup">Back up first</h3>
+  <ol class="steps">
+    <li><b>The database.</b> For example:
+      <pre><code># MariaDB / MySQL
+mysqldump -u shop -p --single-transaction reactive_shop &gt; reactive_shop-backup.sql
+# PostgreSQL
+pg_dump -U shop -d reactive_shop -F c -f reactive_shop-backup.dump
+# Docker (bundled MariaDB)
+docker compose exec db sh -c 'mariadb-dump -u root -p"$MARIADB_ROOT_PASSWORD" --single-transaction reactive_shop' &gt; reactive_shop-backup.sql</code></pre>
+      For SQL Server and Oracle use their own backup tools (a <code>.bak</code> backup, Data Pump).</li>
+    <li><b>The shop's files</b>: the whole shop folder (<a href="#files">the files listed above</a>), or in Docker the
+      <code>app-data</code> volume.</li>
+    <li><b>Read the release notes</b> of the new version for anything special.</li>
+  </ol>
+
+  <h3 id="update-docker">Docker</h3>
+  <ol class="steps">
+    <li>Unzip the new version and copy its files over your current folder. Keep your <code>.env</code>.</li>
+    <li>Rebuild and restart:
+      <pre><code>docker compose up -d --build</code></pre>
+      The volumes (<code>db-data</code>, <code>app-data</code>) are kept. Never run <code>docker compose down -v</code>:
+      <code>-v</code> deletes them.</li>
+    <li>Check the log: <code>docker compose logs app</code>.</li>
+  </ol>
+
+  <h3 id="update-jar">Jar</h3>
+  <ol class="steps">
+    <li>Stop the shop (e.g. <code>sudo systemctl stop reactive-shop</code>).</li>
+    <li>Replace <code>reactive-shop.jar</code> in the shop folder with the new one. Leave every other file there as it is.</li>
+    <li>Start it again from the same folder, and watch the log until it says the shop has started.</li>
+  </ol>
+
+  <h3 id="update-source">From source</h3>
+  <p>If you changed the code, merge your changes into the new version first. Then build with <code>clean</code>:</p>
+  <pre><code>./mvnw clean package -DskipTests</code></pre>
+  <p>and replace the jar as above. Skipping <code>clean</code> can leave the previous version's migration files in
+    <code>target/</code>, and the shop then refuses to start (see the <a href="#faq-migration">FAQ</a>). Don't edit or delete
+    migrations that have already run on your database; add new ones with a higher version number instead.</p>
+
+  <h3 id="update-rollback">If something goes wrong</h3>
+  <p>Going back to an older version over an upgraded database isn't supported. Stop the shop, restore the database
+    backup and the shop's files, and start the old version. Then send the error from the log to support.</p>
+</section>
+
+<!-- ============================================================ 10 -->
+<section class="card" id="faq">
+  <div class="section-head"><span class="num">10</span><div><h2>FAQ</h2></div></div>
+
+  <h3>Where do I find the setup token?</h3>
+  <p>In the shop's log, right after it starts: look for <code>Reactive Shop needs setting up</code>. With Docker:
+    <code>docker compose logs app</code>; with systemd: <code>journalctl -u reactive-shop</code>. To choose it yourself,
+    set <code>SHOP_SETUP_TOKEN</code> before starting.</p>
+
+  <h3>The shop stops at startup with "Refusing to start in production".</h3>
+  <p>A safety check found an unsafe setting, and the message names it: a <code>JWT_SECRET</code> shorter than 32
+    characters, an <code>ADMIN_PASSWORD</code> shorter than 12 characters or <code>admin123</code>, or
+    <code>SHOP_CORS_ALLOWED_ORIGINS</code> containing <code>*</code> or <code>localhost</code>. Fix that setting, or leave it
+    unset (secrets are then generated for you). Details: <a href="../PRODUCTION_TRANSFER.md">PRODUCTION_TRANSFER.md</a>,
+    section 4. Set <code>SHOP_PRODUCTION=false</code> only on your own development machine.</p>
+
+  <h3>The wizard can't connect to my database.</h3>
+  <p>Check host, port, user and password from the server the shop runs on (not your own computer): a firewall, a database
+    that only listens on <code>127.0.0.1</code>, or a user that may only connect from <code>localhost</code> are the usual
+    causes. In Docker, the database's host name is its service name (<code>db</code>), not <code>localhost</code>. SQL Server
+    needs TCP/IP enabled; Oracle needs the exact service name.</p>
+
+  <h3>The license step says my code is already in use.</h3>
+  <p>A code covers one live domain. Moving the shop? On the old shop, open <b>Admin → Settings → License</b> and deactivate
+    it, then activate on the new one (allow up to a minute in between). Test and staging addresses (listed in
+    <a href="#wizard">the wizard section</a>) don't count.</p>
+
+  <h3>I forgot the admin password.</h3>
+  <p>With email set up, use <b>Forgot your password?</b> on the sign-in page. Without email: stop the shop, set
+    <code>ADMIN_EMAIL</code> to a <b>new</b> address and <code>ADMIN_PASSWORD</code> to a strong password, and start it
+    again. That creates a second admin (an existing address is never changed). Sign in with it, remove the two variables,
+    and set up email so the old account can use <b>Forgot your password?</b>, or make it a customer under <b>Admin → Users</b>.</p>
+
+  <h3>How do I run it on another port?</h3>
+  <p>Set <code>SERVER_PORT</code> (e.g. <code>SERVER_PORT=8090</code>) for the jar, or <code>SHOP_PORT</code> in
+    <code>.env</code> for Docker. Update <code>SHOP_PUBLIC_URL</code> to match if shoppers reach the shop directly on that port.</p>
+
+  <h3>A payment method doesn't show at checkout.</h3>
+  <p>Each method stays off until its credentials are saved and <b>Offered at checkout</b> is on under
+    <b>Admin → Integrations</b>. See the <a href="../index.html">setup guide</a>.</p>
+
+  <h3>Can I use H2 for a live shop?</h3>
+  <p>No. H2 keeps everything in memory and loses it, admin account included, whenever the shop stops. Use it to look
+    around, then install on a database server.</p>
+
+  <h3>Can I switch databases later?</h3>
+  <p>Yes: <b>Admin → Database</b> copies all the data to another engine and switches the shop over. Back up first, and
+    test the new database before taking orders on it.</p>
+
+  <h3>How do I remove the demo products and test orders?</h3>
+  <p>Edit or delete products under <b>Admin → Products</b>. <b>Restart store fresh</b> (Admin → Overview) deletes all
+    orders, payment records and carts and returns their stock, but keeps products and customers.</p>
+
+  <h3 id="faq-migration">After updating, the shop won't start: "Found more than one migration with version …"</h3>
+  <p>The build folder still holds the previous version's migration files. Rebuild with <code>./mvnw clean package</code>
+    (the <code>clean</code> matters). The ready-built jar from the download never has this problem.</p>
+
+  <h3>Can it run on shared hosting (cPanel, PHP)?</h3>
+  <p>No. It needs a server where a Java 21 program (or a Docker container) can run continuously and listen on a port: a
+    VPS, a dedicated server, or a container platform.</p>
+
+  <h3>Do I need to keep anything secret?</h3>
+  <p><code>shop-install.properties</code>, <code>integration-settings.json</code>, your <code>.env</code> and your database
+    backups. Never put them in a public place or a public Git repository.</p>
+</section>
+
+<footer>Reactive Shop · Installation and update guide. Payments, email and sign-in: <a href="../index.html">setup guide</a>.</footer>
+</main>
+</div>
+<script>
+(function() {
+  const links = Array.from(document.querySelectorAll('nav.toc a[href^="#"]'));
+  const targets = links.map(link => {
+    const id = link.getAttribute('href').slice(1);
+    return { link, elem: document.getElementById(id) };
+  }).filter(item => item.elem !== null);
+
+  links.forEach(link => {
+    link.addEventListener('click', function(e) {
+      const targetId = this.getAttribute('href').slice(1);
+      const targetElem = document.getElementById(targetId);
+      if (targetElem) {
+        e.preventDefault();
+        targetElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.pushState(null, '', '#' + targetId);
+      }
+    });
+  });
+
+  function updateActiveLink() {
+    const scrollPos = window.scrollY + 120;
+    let current = null;
+    for (const item of targets) {
+      const top = item.elem.getBoundingClientRect().top + window.scrollY;
+      if (top <= scrollPos) {
+        current = item;
+      }
+    }
+    targets.forEach(item => item.link.classList.remove('active'));
+    if (current) {
+      current.link.classList.add('active');
+    }
+  }
+
+  window.addEventListener('scroll', updateActiveLink, { passive: true });
+  window.addEventListener('resize', updateActiveLink, { passive: true });
+  updateActiveLink();
+})();
+</script>
+</body>
+</html>
